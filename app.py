@@ -3,8 +3,16 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
+import os
+import time
 
 MODEL_PATH = "model"
+
+# Wait for model files to appear before loading
+print("🔁 Waiting for model files in /model...")
+while not os.path.exists(os.path.join(MODEL_PATH, "config.json")) or not os.path.exists(os.path.join(MODEL_PATH, "training_args.bin")) or not os.path.exists(os.path.join(MODEL_PATH, "optimizer.pt")) or not os.path.exists(os.path.join(MODEL_PATH, "model.safetensors")) or not os.path.exists(os.path.join(MODEL_PATH, "scheduler.pt")):
+    print("⏳ /model/config.json or /model/training_args.bin or /model/optimizer.pt or /model/model.safetensors or /model/scheduler.pt not found. Retrying in 2s...")
+    time.sleep(2)
 
 app = FastAPI()
 
