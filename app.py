@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 
-MODEL_PATH = "/model"
+MODEL_PATH = "model"
 
 app = FastAPI()
 
