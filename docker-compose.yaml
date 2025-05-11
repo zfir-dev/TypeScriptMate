@@ -2,7 +2,5 @@ version: "3.9"
 services:
   typescriptmate-api:
     build: .
-    ports:
-      - "8000:8000"
     volumes:
       - ~/models/typescriptmate:/model:ro
