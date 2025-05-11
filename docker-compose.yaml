@@ -5,4 +5,4 @@ services:
     tty: true
     stdin_open: true
     volumes:
-      - /home/ubuntu/models/typescriptmate:/model
+      - /home/ubuntu/models/typescriptmate:/app/model
