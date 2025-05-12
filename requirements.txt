@@ -1,7 +1,7 @@
 fastapi==0.110.0
 uvicorn[standard]==0.29.0
 transformers==4.40.0
-peft==0.10.0
+peft==0.15.2
 torch
 tokenizers==0.19.1
 pydantic==2.7.1
