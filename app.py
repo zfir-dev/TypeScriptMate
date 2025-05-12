@@ -7,13 +7,39 @@ import os
 import time
 
 MODEL_PATH = "model"
+REQUIRED_FILES = [
+    "adapter_config.json",
+    "adapter_model.safetensors",
+    "merges.txt",
+    "config.json",
+    "special_tokens_map.json",
+    "tokenizer_config.json",
+    "tokenizer.json",
+    "vocab.json"
+]
 
-app = FastAPI()
+def wait_for_model_files(timeout=60):
+    print(f"⏳ Waiting for model files in '{MODEL_PATH}' ...")
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        missing = [f for f in REQUIRED_FILES if not os.path.exists(os.path.join(MODEL_PATH, f))]
+        if not missing:
+            print("All model files found. Proceeding to load.")
+            return
+        print(f"Still waiting for: {missing}")
+        time.sleep(2)
+    raise RuntimeError(f"Timeout: Model files not fully copied in {timeout} seconds.")
 
-# Load model from host-mounted directory
+# ─── Wait before loading ──────────────────────────────────────────────────────
+wait_for_model_files()
+
+# ─── Load model & tokenizer ────────────────────────────────────────────────────
 tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
 model = AutoModelForCausalLM.from_pretrained(MODEL_PATH)
 model.eval()
+
+# ─── FastAPI Setup ────────────────────────────────────────────────────────────
+app = FastAPI()
 
 class CompletionRequest(BaseModel):
     prompt: str
