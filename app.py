@@ -8,8 +8,6 @@ import time
 
 MODEL_PATH = "model"
 
-torch.set_num_threads(1)
-
 # ─── Load model & tokenizer ────────────────────────────────────────────────────
 print("Loading model...")
 tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
