@@ -6,12 +6,11 @@ import torch
 import os
 import time
 
-MODEL_PATH = "/app/model"
+MODEL_PATH = "model"
 REQUIRED_FILES = [
     "adapter_config.json",
     "adapter_model.safetensors",
     "merges.txt",
-    "config.json",
     "special_tokens_map.json",
     "tokenizer_config.json",
     "tokenizer.json",
