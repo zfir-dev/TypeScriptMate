@@ -33,7 +33,7 @@ def wait_for_model_files(timeout=60):
 wait_for_model_files()
 
 # ─── Load model & tokenizer ────────────────────────────────────────────────────
-tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
+tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, use_fast=True)
 model = AutoModelForCausalLM.from_pretrained(MODEL_PATH)
 model.eval()
 
