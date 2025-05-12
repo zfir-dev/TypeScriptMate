@@ -6,7 +6,7 @@ import torch
 import os
 import time
 
-MODEL_PATH = "model"
+MODEL_PATH = "/app/model"
 REQUIRED_FILES = [
     "adapter_config.json",
     "adapter_model.safetensors",
