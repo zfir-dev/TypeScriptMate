@@ -6,6 +6,8 @@ import torch
 import os
 import time
 
+MODEL_PATH = "model"
+
 tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
 model = AutoModelForCausalLM.from_pretrained(MODEL_PATH)
 model.eval()
