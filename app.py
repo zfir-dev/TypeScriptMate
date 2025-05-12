@@ -35,7 +35,12 @@ def wait_for_model_files(timeout=60):
 wait_for_model_files()
 
 # ─── Load tokenizer (safe on all architectures) ───────────────────────────────
-tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, use_fast=True)
+try:
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, use_fast=True)
+except Exception as e:
+    print(f"⚠️ Failed to load fast tokenizer: {e}")
+    print("➡️ Falling back to slow tokenizer.")
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, use_fast=False)
 tokenizer.pad_token = tokenizer.eos_token  # ensure padding is defined
 
 # ─── Load GPT-2 base and apply LoRA adapter ───────────────────────────────────
