@@ -29,15 +29,14 @@ def wait_for_model_files(timeout=60):
         time.sleep(2)
     raise RuntimeError(f"Timeout: Model files not fully copied in {timeout} seconds.")
 
-# ─── Wait before loading ──────────────────────────────────────────────────────
 wait_for_model_files()
 
-# ─── Load model & tokenizer ────────────────────────────────────────────────────
-tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, use_fast=True)
+tokenizer = AutoTokenizer.from_pretrained("gpt2", use_fast=True)
+tokenizer.pad_token = tokenizer.eos_token
+
 model = AutoModelForCausalLM.from_pretrained(MODEL_PATH)
 model.eval()
 
-# ─── FastAPI Setup ────────────────────────────────────────────────────────────
 app = FastAPI()
 
 class CompletionRequest(BaseModel):
