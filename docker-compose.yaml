@@ -1,0 +1,19 @@
+version: "3.9"
+services:
+  typescriptmate-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    platform: linux/arm64
+    tty: true
+    stdin_open: true
+    volumes:
+      - /home/ubuntu/models/typescriptmate:/app/model
+    deploy:
+      resources:
+        limits:
+          cpus: '3.0'
+          memory: 16g
+        reservations:
+          cpus: '2.0'
+          memory: 12g
