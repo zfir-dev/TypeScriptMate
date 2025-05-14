@@ -66,7 +66,7 @@ gr_interface = gr.Interface(
         gr.Slider(minimum=1, maximum=200, value=40, label="Max Tokens")
     ],
     outputs="text",
-    title="TypeScript Code Completion API",
+    title="TypeScriptMate API",
     description="Enter a prompt to get generated completions. Powered by a transformer model."
 )
 
