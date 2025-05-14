@@ -1,5 +1,5 @@
 # app.py
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
@@ -19,7 +19,14 @@ model.eval()
 print("Model loaded.")
 
 # ─── FastAPI Setup ────────────────────────────────────────────────────────────
-app = FastAPI()
+app = FastAPI(
+    title="TypeScriptMate API",
+    description="API for TypeScript code generation and completion",
+    version="1.0.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json"
+)
 
 def generate_text(prompt: str, max_tokens: int = 40) -> str:
     start = time.time()
@@ -47,7 +54,7 @@ if HF_TOKEN:
         ],
         outputs=gr.Textbox(label="Completion"),
         title="TypeScriptMate API",
-        description=f"Using model: {MODEL}",
+        description=f"Using model: {MODEL}"
     )
     app = gr.mount_gradio_app(app, gradio_interface, path="/")
 
@@ -55,13 +62,43 @@ class CompletionRequest(BaseModel):
     prompt: str
     max_tokens: int = 40
 
-@app.post("/complete")
-def complete(req: CompletionRequest):
-    return {"completion": generate_text(req.prompt, req.max_tokens)}
+    class Config:
+        schema_extra = {
+            "example": {
+                "prompt": "function calculateSum(a: number, b: number): number {",
+                "max_tokens": 40
+            }
+        }
 
-@app.get("/health")
-def health_check():
-    """Health check endpoint to verify the API is running"""
+class CompletionResponse(BaseModel):
+    completion: str
+    model: str = MODEL
+
+@app.post("/api/complete", response_model=CompletionResponse)
+async def complete(req: CompletionRequest):
+    """
+    Generate TypeScript code completion based on the input prompt.
+    
+    Args:
+        req (CompletionRequest): The request containing prompt and generation parameters
+        
+    Returns:
+        CompletionResponse: The generated completion and model information
+    """
+    try:
+        completion = generate_text(req.prompt, req.max_tokens)
+        return CompletionResponse(completion=completion)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/health")
+async def health_check():
+    """
+    Health check endpoint to verify the API is running and get model information.
+    
+    Returns:
+        dict: API status and model information
+    """
     return {
         "status": "healthy",
         "model": MODEL,
