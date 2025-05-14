@@ -6,12 +6,12 @@ import torch
 import os
 import time
 
-MODEL_PATH = "model"
+MODEL = os.getenv("MODEL_NAME", "model")
 
 # ─── Load model & tokenizer ────────────────────────────────────────────────────
 print("Loading model...")
-tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
-model = AutoModelForCausalLM.from_pretrained(MODEL_PATH)
+tokenizer = AutoTokenizer.from_pretrained(MODEL)
+model = AutoModelForCausalLM.from_pretrained(MODEL)
 model.eval()
 print("Model loaded.")
 
@@ -36,3 +36,12 @@ def complete(req: CompletionRequest):
     result = tokenizer.decode(outputs[0], skip_special_tokens=True)
     print(f"Completed request in {time.time() - start:.2f}s")
     return {"completion": result[len(req.prompt):]}
+
+@app.get("/health")
+def health_check():
+    """Health check endpoint to verify the API is running"""
+    return {
+        "status": "healthy",
+        "model": MODEL_PATH,
+        "timestamp": time.time()
+    }
