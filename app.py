@@ -5,6 +5,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 import os
 import time
+import gradio as gr
 
 MODEL = os.getenv("MODEL_NAME", "model")
 HF_TOKEN = os.getenv("HF_TOKEN")
@@ -18,6 +19,10 @@ print("Model loaded.")
 
 # ─── FastAPI Setup ────────────────────────────────────────────────────────────
 app = FastAPI()
+
+if HF_TOKEN:
+    io = gr.Interface(lambda x: "Hello, " + x + "!", "textbox", "textbox")
+    app = gr.mount_gradio_app(app, io, path="/gradio")
 
 class CompletionRequest(BaseModel):
     prompt: str
