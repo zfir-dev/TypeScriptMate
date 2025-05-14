@@ -1,3 +1,13 @@
+---
+title: TypeScriptMate-API
+emoji: 🤗
+colorFrom: yellow
+colorTo: orange
+sdk: gradio
+app_file: app.py
+pinned: false
+---
+
 # TypeScriptMate-API
 
 Running Locally
