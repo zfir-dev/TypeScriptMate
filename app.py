@@ -7,12 +7,11 @@ import os
 import time
 
 MODEL = os.getenv("MODEL_NAME", "model")
-HF_TOKEN = os.getenv("HF_TOKEN")
 
 # ─── Load model & tokenizer ────────────────────────────────────────────────────
 print("Loading model...")
-tokenizer = AutoTokenizer.from_pretrained(MODEL, token=HF_TOKEN)
-model = AutoModelForCausalLM.from_pretrained(MODEL, token=HF_TOKEN)
+tokenizer = AutoTokenizer.from_pretrained(MODEL)
+model = AutoModelForCausalLM.from_pretrained(MODEL)
 model.eval()
 print("Model loaded.")
 
