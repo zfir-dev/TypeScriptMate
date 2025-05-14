@@ -13,11 +13,11 @@ MODEL = os.getenv("MODEL_NAME", "model")
 HF_TOKEN = os.getenv("HF_TOKEN")
 
 # ─── Load model & tokenizer ────────────────────────────────────────────────────
-print("Loading model...")
+print(f"Loading {MODEL} model...")
 tokenizer = AutoTokenizer.from_pretrained(MODEL, token=HF_TOKEN)
 model = AutoModelForCausalLM.from_pretrained(MODEL, token=HF_TOKEN)
 model.eval()
-print("Model loaded.")
+print(f"Model {MODEL} loaded.")
 
 # ─── FastAPI Setup ────────────────────────────────────────────────────────────
 app = FastAPI()
