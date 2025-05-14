@@ -73,6 +73,6 @@ gr_interface = gr.Interface(
 # ─── Conditional Entry Point ───────────────────────────────────────────────────
 if __name__ == "__main__":
     if HF_TOKEN:
-        gr_interface.launch(server_name="0.0.0.0", server_port=7860)
+        gr_interface.launch(server_name="0.0.0.0", server_port=7860, share=True)
     else:
         uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=False)
