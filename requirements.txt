@@ -1,7 +1,7 @@
+ctransformers==0.2.27
 fastapi==0.115.12
 peft==0.15.2
 pydantic==2.11.4
 tokenizers==0.21.1
 torch==2.7.0
-transformers==4.51.3
 uvicorn[standard]==0.34.2

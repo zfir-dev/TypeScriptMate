@@ -1,7 +1,7 @@
 # app.py
 from fastapi import FastAPI
 from pydantic import BaseModel
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from ctransformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 import os
 import time
@@ -13,8 +13,8 @@ HF_TOKEN = os.getenv("HF_TOKEN")
 
 # ─── Load model & tokenizer ────────────────────────────────────────────────────
 print(f"Loading {MODEL} model...")
-tokenizer = AutoTokenizer.from_pretrained(MODEL, token=HF_TOKEN)
-model = AutoModelForCausalLM.from_pretrained(MODEL, model_type="gpt2", token=HF_TOKEN)
+model = AutoModelForCausalLM.from_pretrained(MODEL, hf=True, token=HF_TOKEN)
+tokenizer = AutoTokenizer.from_pretrained(model)
 model.eval()
 print(f"Model {MODEL} loaded.")
 
