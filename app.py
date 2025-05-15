@@ -61,7 +61,7 @@ def gradio_completion(prompt, max_tokens):
     )
     result = tokenizer.decode(outputs[0], skip_special_tokens=True)
     print(f"Completed request in {time.time() - start:.2f}s")
-    return result[len(prompt):]
+    return {"completion": result[len(prompt):]}
 
 gr_interface = gr.Interface(
     fn=gradio_completion,
