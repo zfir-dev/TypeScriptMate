@@ -7,6 +7,7 @@ import os
 import time
 import gradio as gr
 import uvicorn
+import spaces
 
 # ─── Environment Config ────────────────────────────────────────────────────────
 MODEL = os.getenv("MODEL_NAME", "model")
@@ -40,16 +41,17 @@ def complete(req: CompletionRequest):
     print(f"Completed request in {time.time() - start:.2f}s")
     return {"completion": result[len(req.prompt):]}
 
-@app.get("/health")
-def health_check():
+@app.get("/debug")
+def debug():
     return {
-        "status": "healthy",
+        "status": "up",
         "model": MODEL,
         "timestamp": time.time()
     }
 
-# ─── Gradio Interface ──────────────────────────────────────────────────────────
-def generate_completion(prompt, max_tokens):
+@spaces.GPU
+def gradio_completion(prompt, max_tokens):
+    start = time.time()
     inputs = tokenizer(prompt, return_tensors="pt")
     outputs = model.generate(
         **inputs,
@@ -57,24 +59,30 @@ def generate_completion(prompt, max_tokens):
         do_sample=False,
         pad_token_id=tokenizer.eos_token_id
     )
-    return tokenizer.decode(outputs[0], skip_special_tokens=True)[len(prompt):]
+    result = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    print(f"Completed request in {time.time() - start:.2f}s")
+    return result[len(prompt):]
 
 gr_interface = gr.Interface(
-    fn=generate_completion,
+    fn=gradio_completion,
     inputs=[
         gr.Textbox(lines=4, label="Prompt"),
         gr.Slider(minimum=1, maximum=200, value=40, label="Max Tokens")
     ],
     outputs="text",
     title="TypeScriptMate API",
-    description="Enter a prompt to get generated completions. Powered by a transformer model."
+    description="Enter a TypeScript code snippet to get a completion.",
+    examples=[
+        ["function add(a, b) {", 40],
+        ["const x = 10;", 40],
+        ["import { useState } from 'react';", 40]
+    ]
 )
 
-# ─── Conditional Entry Point ───────────────────────────────────────────────────
 if __name__ == "__main__":
     if HF_TOKEN:
         print("Launching Gradio interface...")
-        gr_interface.launch(mcp_server=True)
+        gr_interface.launch()
     else:
         print("Launching FastAPI server...")
         uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=False)
