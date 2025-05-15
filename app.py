@@ -74,7 +74,7 @@ gr_interface = gr.Interface(
 if __name__ == "__main__":
     if HF_TOKEN:
         print("Launching Gradio interface...")
-        gr_interface.launch(server_name="0.0.0.0", server_port=7860, share=True, ssr_mode=False)
+        gr_interface.launch(mcp_server=True)
     else:
         print("Launching FastAPI server...")
         uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=False)
