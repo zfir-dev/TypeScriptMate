@@ -13,8 +13,8 @@ HF_TOKEN = os.getenv("HF_TOKEN")
 
 # ─── Load model & tokenizer ────────────────────────────────────────────────────
 print(f"Loading {MODEL} model...")
-model = AutoModelForCausalLM.from_pretrained("zfir/TypeScriptMate", hf=True)
-tokenizer = AutoTokenizer.from_pretrained(model)
+tokenizer = AutoTokenizer.from_pretrained(MODEL, token=HF_TOKEN)
+model = AutoModelForCausalLM.from_pretrained(MODEL, model_type="gpt2", token=HF_TOKEN)
 model.eval()
 print(f"Model {MODEL} loaded.")
 
