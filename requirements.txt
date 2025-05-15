@@ -1,9 +1,7 @@
 fastapi==0.115.12
-gradio==5.29.0
 numpy==2.2.5
 peft==0.15.2
 pydantic==2.11.4
-spaces==0.36.0
 tokenizers==0.21.1
 torch==2.7.0
 transformers==4.51.3
