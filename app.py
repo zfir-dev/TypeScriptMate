@@ -12,8 +12,8 @@ MODEL = os.getenv("MODEL_NAME", "model")
 
 # ─── Load model & tokenizer ────────────────────────────────────────────────────
 print(f"Loading {MODEL} model...")
-tokenizer = GPT2Tokenizer.from_pretrained("zfir/TypeScriptMate")
-model = GPT2LMHeadModel.from_pretrained("zfir/TypeScriptMate")
+tokenizer = GPT2Tokenizer.from_pretrained(MODEL)
+model = GPT2LMHeadModel.from_pretrained(MODEL)
 model.eval()
 print(f"Model {MODEL} loaded.")
 
