@@ -9,7 +9,6 @@ import uvicorn
 
 # ─── Environment Config ────────────────────────────────────────────────────────
 MODEL = os.getenv("MODEL_NAME", "model")
-HF_TOKEN = os.getenv("HF_TOKEN")
 
 # ─── Load model & tokenizer ────────────────────────────────────────────────────
 print(f"Loading {MODEL} model...")
