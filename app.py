@@ -18,9 +18,9 @@ print(list_repo_files(MODEL, token=HF_TOKEN))
 
 # ─── Load model & tokenizer ────────────────────────────────────────────────────
 print(f"Loading {MODEL} model...")
-tokenizer = GPT2Tokenizer.from_pretrained(MODEL, token=HF_TOKEN)
+tokenizer = GPT2Tokenizer.from_pretrained(MODEL, use_auth_token=HF_TOKEN)
 tokenizer.pad_token = tokenizer.eos_token
-model = GPT2LMHeadModel.from_pretrained(MODEL, token=HF_TOKEN)
+model = GPT2LMHeadModel.from_pretrained(MODEL, use_auth_token=HF_TOKEN)
 model.eval()
 print(f"Model {MODEL} loaded.")
 
