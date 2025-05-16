@@ -1,7 +1,7 @@
 # app.py
 from fastapi import FastAPI
 from pydantic import BaseModel
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import GPT2LMHeadModel, GPT2Tokenizer
 import torch
 import os
 import time
@@ -12,8 +12,8 @@ MODEL = os.getenv("MODEL_NAME", "model")
 
 # ─── Load model & tokenizer ────────────────────────────────────────────────────
 print(f"Loading {MODEL} model...")
-tokenizer = AutoTokenizer.from_pretrained("zfir/TypeScriptMate")
-model = AutoModelForCausalLM.from_pretrained("zfir/TypeScriptMate")
+tokenizer = GPT2Tokenizer.from_pretrained("zfir/TypeScriptMate")
+model = GPT2LMHeadModel.from_pretrained("zfir/TypeScriptMate")
 model.eval()
 print(f"Model {MODEL} loaded.")
 
