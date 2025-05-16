@@ -2,6 +2,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from transformers import GPT2LMHeadModel, GPT2Tokenizer
+from huggingface_hub import list_repo_files
 import torch
 import os
 import time
@@ -13,13 +14,13 @@ os.environ["TRANSFORMERS_CACHE"] = "/tmp/huggingface"
 MODEL = os.getenv("MODEL_NAME", "model")
 HF_TOKEN = os.getenv("HF_TOKEN")
 
-print(f"HF_TOKEN: {HF_TOKEN}")
+print(list_repo_files(MODEL, token=HF_TOKEN))
 
 # ─── Load model & tokenizer ────────────────────────────────────────────────────
 print(f"Loading {MODEL} model...")
-tokenizer = GPT2Tokenizer.from_pretrained(MODEL, use_auth_token=HF_TOKEN)
+tokenizer = GPT2Tokenizer.from_pretrained(MODEL, token=HF_TOKEN)
 tokenizer.pad_token = tokenizer.eos_token
-model = GPT2LMHeadModel.from_pretrained(MODEL, use_auth_token=HF_TOKEN)
+model = GPT2LMHeadModel.from_pretrained(MODEL, token=HF_TOKEN)
 model.eval()
 print(f"Model {MODEL} loaded.")
 
