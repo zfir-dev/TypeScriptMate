@@ -9,11 +9,12 @@ import uvicorn
 
 # ─── Environment Config ────────────────────────────────────────────────────────
 MODEL = os.getenv("MODEL_NAME", "model")
+HF_TOKEN = os.getenv("HF_TOKEN")
 
 # ─── Load model & tokenizer ────────────────────────────────────────────────────
 print(f"Loading {MODEL} model...")
-tokenizer = GPT2Tokenizer.from_pretrained(MODEL)
-model = GPT2LMHeadModel.from_pretrained(MODEL)
+tokenizer = GPT2Tokenizer.from_pretrained(MODEL, token=HF_TOKEN)
+model = GPT2LMHeadModel.from_pretrained(MODEL, token=HF_TOKEN)
 model.eval()
 print(f"Model {MODEL} loaded.")
 
