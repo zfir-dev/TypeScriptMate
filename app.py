@@ -14,6 +14,7 @@ HF_TOKEN = os.getenv("HF_TOKEN")
 # ─── Load model & tokenizer ────────────────────────────────────────────────────
 print(f"Loading {MODEL} model...")
 tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
+tokenizer.pad_token = tokenizer.eos_token
 model = GPT2LMHeadModel.from_pretrained(MODEL, token=HF_TOKEN)
 model.eval()
 print(f"Model {MODEL} loaded.")
