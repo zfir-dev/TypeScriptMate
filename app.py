@@ -13,6 +13,8 @@ os.environ["TRANSFORMERS_CACHE"] = "/tmp/huggingface"
 MODEL = os.getenv("MODEL_NAME", "model")
 HF_TOKEN = os.getenv("HF_TOKEN")
 
+print(f"HF_TOKEN: {HF_TOKEN}")
+
 # ─── Load model & tokenizer ────────────────────────────────────────────────────
 print(f"Loading {MODEL} model...")
 tokenizer = GPT2Tokenizer.from_pretrained(MODEL, use_auth_token=HF_TOKEN)
