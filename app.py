@@ -7,6 +7,8 @@ import os
 import time
 import uvicorn
 
+os.environ["TRANSFORMERS_CACHE"] = "/tmp/huggingface"
+
 # ─── Environment Config ────────────────────────────────────────────────────────
 MODEL = os.getenv("MODEL_NAME", "model")
 HF_TOKEN = os.getenv("HF_TOKEN")
