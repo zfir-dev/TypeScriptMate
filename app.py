@@ -22,6 +22,8 @@ if HF_TOKEN:
     token=HF_TOKEN
   )
   print(f"Model files: {os.listdir(MODEL)}")
+else:
+  print("No HF_TOKEN provided, using local model")
 
 # ─── Load model & tokenizer ────────────────────────────────────────────────────
 print(f"Loading {MODEL} model...")
