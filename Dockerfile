@@ -1,13 +1,13 @@
-FROM python:3.9-slim
+FROM python:3.9
 
 ENV PYTHONUNBUFFERED=1
 ENV HF_HOME=/tmp/hf_cache
 
-WORKDIR /app
+WORKDIR /code
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY ./requirements.txt /code/requirements.txt
+RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
-COPY . .
+COPY ./app.py /code/app.py
 
 CMD ["python", "app.py"]
