@@ -5,23 +5,23 @@ RUN apt-get update && \
     apt-get install -y git git-lfs && \
     git lfs install
 
-# Hugging Face auth for private model clone
-# Expect HF_TOKEN in the build context
+# Accept Hugging Face token at build time
 ARG HF_TOKEN
-RUN git config --global credential.helper store && \
-    echo "machine huggingface.co\nlogin zfir\npassword ${HF_TOKEN}" > ~/.netrc
+
+# Configure Git credentials for Hugging Face
+RUN echo -e "machine huggingface.co\nlogin zfir\npassword ${HF_TOKEN}" > /root/.netrc
 
 WORKDIR /code
 
-# Install Python deps
+# Install Python dependencies
 COPY ./requirements.txt /code/requirements.txt
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
-# Clone model repo
-RUN GIT_LFS_SKIP_SMUDGE=1 git clone https://huggingface.co/zfir/TypeScriptMate model && \
+# Clone the model repo (with authentication)
+RUN git clone https://huggingface.co/zfir/TypeScriptMate model && \
     cd model && git lfs pull
 
-# Add your FastAPI app
+# Add FastAPI app
 COPY ./app.py /code/app.py
 
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
