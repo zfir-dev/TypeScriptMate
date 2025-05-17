@@ -55,6 +55,13 @@ def complete(req: CompletionRequest):
     return {"completion": result[len(req.prompt):]}
 
 @app.get("/")
+def index():
+    return {
+        "status": "ok",
+        "model": MODEL,
+        "timestamp": time.time()
+    }
+
 @app.get("/health")
 def health_check():
     return {
