@@ -20,4 +20,7 @@ CMD bash -lc "\
     --device cpu \
     --host 0.0.0.0 \
     --port ${PORT:-8000} \
+    --enforce-eager \
+    --max-num-seqs 8 \
+    --scheduler-delay-factor 0.01 \
 "
