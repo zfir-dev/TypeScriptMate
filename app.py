@@ -26,7 +26,7 @@ else:
   print("No HF_TOKEN provided, using local model")
 
 # ─── Load model & tokenizer ────────────────────────────────────────────────────
-print(f"Loading {MODEL} model...")
+print(f"Loading model...")
 tokenizer = AutoTokenizer.from_pretrained(MODEL)
 tokenizer.pad_token = tokenizer.eos_token
 model = AutoModelForCausalLM.from_pretrained(MODEL)
