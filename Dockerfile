@@ -1,15 +1,16 @@
-# Use the official TGI image (has correct ENTRYPOINT & permissions baked in)
-FROM ghcr.io/huggingface/text-generation-inference:latest
+FROM ghcr.io/huggingface/text-generation-inference:latest-cpu
 
-# Expose the port that Spaces will map (7860)
+# 1) Writable caches and HOME
+ENV HF_HOME=/tmp/hf_cache \
+    TRANSFORMERS_CACHE=/tmp/hf_cache \
+    HOME=/tmp
+
+WORKDIR /app
+
+# 2) Expose the HF Spaces port
 EXPOSE 8000
 
-# Cache in a writable dir
-ENV HF_HOME=/tmp/hf_cache \
-    TRANSFORMERS_CACHE=/tmp/hf_cache
-
-# *Do not* override ENTRYPOINT!
-# Just supply the args via CMD so the image's own entrypoint (text-generation-server) runs
+# 3) Supply only the TGI flags; the ENTRYPOINT is already `text-generation-launcher`
 CMD ["--model-id", "zfir/TypeScriptMate", \
      "--revision", "main", \
      "--device", "cpu", \
