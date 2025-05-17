@@ -6,7 +6,6 @@ os.environ["OMP_NUM_THREADS"] = "8"
 os.environ["MKL_NUM_THREADS"] = "8"
 os.environ["TORCHINDUCTOR_CACHE_DIR"] = "/tmp/torch_inductor_cache"
 os.makedirs(os.environ["TORCHINDUCTOR_CACHE_DIR"], exist_ok=True)
-HF_TOKEN = os.getenv("HF_TOKEN")
 
 import torch
 from fastapi import FastAPI
@@ -26,8 +25,12 @@ MODEL_PATH: str = None
 tokenizer: AutoTokenizer = None
 model: torch.nn.Module = None
 
+HF_TOKEN = os.getenv("HF_TOKEN")
+
+
 def load_model():
     global MODEL_PATH, tokenizer, model
+
     if HF_TOKEN:
         MODEL_PATH = snapshot_download(repo_id="zfir/TypeScriptMate", token=HF_TOKEN)
         print(f"Model files: {os.listdir(MODEL_PATH)}")
@@ -47,26 +50,21 @@ def load_model():
         model_q = torch.quantization.quantize_dynamic(
             base_model, {torch.nn.Linear}, dtype=torch.qint8
         )
-        print("Quantization succeeded")
+        print("✔ quantization succeeded")
     except Exception as e:
-        print(f"Quantization failed ({e}), using float32 model")
+        print(f"⚠ quantization failed ({e}); using float32 model")
         model_q = base_model
 
-    try:
-        print("Attempting torch.compile…")
-        model_compiled = torch.compile(model_q)
-        model = model_compiled
-        print("Compile succeeded")
-    except Exception as e:
-        print(f"Compile failed ({e}), using uncompiled model")
-        model = model_q
-
+    model = model_q
     model.eval()
 
-    print("Warming up…")
+    print("Warming up (1 token)…")
     dummy = tokenizer("Hi", return_tensors="pt")
     with torch.inference_mode():
         _ = model.generate(**dummy, max_new_tokens=1)
+    print("Warming up (40 tokens)…")
+    with torch.inference_mode():
+        _ = model.generate(**dummy, max_new_tokens=40)
     print("Warm-up complete.")
 
 
@@ -93,8 +91,10 @@ def health_check():
 async def complete(req: CompletionRequest):
     if model is None:
         return {"error": "Model still loading…"}
+
     start_time = time.time()
     inputs = tokenizer(req.prompt, return_tensors="pt")
+
     with torch.inference_mode():
         outputs = await run_in_threadpool(
             lambda: model.generate(
@@ -104,7 +104,9 @@ async def complete(req: CompletionRequest):
                 pad_token_id=tokenizer.eos_token_id
             )
         )
+
     text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    end_time = time.time()
-    print(f"Completion time: {end_time - start_time} seconds")
+    elapsed = time.time() - start_time
+    print(f"Completion time: {elapsed:.3f} seconds")
+
     return {"completion": text[len(req.prompt):]}
