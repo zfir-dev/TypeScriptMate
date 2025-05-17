@@ -1,17 +1,18 @@
-FROM ghcr.io/huggingface/text-generation-inference:latest-cpu
+FROM python:3.9
 
-# 1) Writable caches and HOME
+ENV PYTHONUNBUFFERED=1  
+
+ENV OMP_NUM_THREADS=1
+ENV MKL_NUM_THREADS=1
+
 ENV HF_HOME=/tmp/hf_cache \
-    TRANSFORMERS_CACHE=/tmp/hf_cache \
-    HOME=/tmp
+    TRANSFORMERS_CACHE=/tmp/hf_cache
 
-WORKDIR /app
+WORKDIR /code
 
-# 2) Expose the HF Spaces port
-EXPOSE 8000
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
-# 3) Supply only the TGI flags; the ENTRYPOINT is already `text-generation-launcher`
-CMD ["--model-id", "zfir/TypeScriptMate", \
-     "--revision", "main", \
-     "--device", "cpu", \
-     "--port", "${PORT:-8000}"]
+COPY app.py .
+
+CMD uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000} --log-level info --workers 8
