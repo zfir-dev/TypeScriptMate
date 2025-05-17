@@ -1,8 +1,12 @@
 FROM python:3.9-slim
 
+ENV LOGNAME=root \
+    USER=root
+
 ENV PYTHONUNBUFFERED=1 \
+    TRANSFORMERS_CACHE=/tmp/hf_cache \
     HF_HOME=/tmp/hf_cache \
-    TRANSFORMERS_CACHE=/tmp/hf_cache
+    TORCHINDUCTOR_CACHE_DIR=/tmp/hf_cache
 
 WORKDIR /app
 
