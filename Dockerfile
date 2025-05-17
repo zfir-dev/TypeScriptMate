@@ -18,9 +18,9 @@ CMD bash -lc "\
     --device cpu \
     --host 0.0.0.0 \
     --port ${PORT:-8000} \
+    --distributed-executor-backend None \
     --enforce-eager \
     --disable-async-output-proc \
-    --distributed-executor-backend uni \
     --max-num-seqs 8 \
     --scheduler-delay-factor 0.01 \
 "
