@@ -10,8 +10,8 @@ ENV HF_HOME=/tmp/hf_cache \
 
 # 3) ENTRYPOINT is already set to text-generation-server in the base image.
 #    We just pass our flags via CMD:
-CMD ["text-generation-server",
-     "--model-id",   "zfir/TypeScriptMate",
-     "--revision",   "main",
-     "--device",     "cpu",
-     "--port",       "${PORT:-8000}"]
+CMD text-generation-server \
+    --model-id zfir/TypeScriptMate \
+    --revision main \
+    --device cpu \
+    --port ${PORT:-8000}
