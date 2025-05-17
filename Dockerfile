@@ -16,7 +16,7 @@ EXPOSE 8000
 
 CMD bash -lc "\
   vllm serve \
-    --model zfir/TypeScriptMate \
+    zfir/TypeScriptMate \
     --device cpu \
     --host 0.0.0.0 \
     --port ${PORT:-8000} \
