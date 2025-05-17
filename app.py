@@ -11,16 +11,13 @@ import uvicorn
 os.environ["TRANSFORMERS_CACHE"] = "/tmp/huggingface"
 
 # ─── Environment Config ────────────────────────────────────────────────────────
-MODEL = os.getenv("MODEL_NAME", "model")
-HF_TOKEN = os.getenv("HF_TOKEN")
-
-print(list_repo_files(MODEL, token=HF_TOKEN))
+MODEL = "model"
 
 # ─── Load model & tokenizer ────────────────────────────────────────────────────
 print(f"Loading {MODEL} model...")
-tokenizer = GPT2Tokenizer.from_pretrained(MODEL, use_auth_token=HF_TOKEN)
+tokenizer = GPT2Tokenizer.from_pretrained(MODEL)
 tokenizer.pad_token = tokenizer.eos_token
-model = GPT2LMHeadModel.from_pretrained(MODEL, use_auth_token=HF_TOKEN)
+model = GPT2LMHeadModel.from_pretrained(MODEL)
 model.eval()
 print(f"Model {MODEL} loaded.")
 
