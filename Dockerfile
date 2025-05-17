@@ -1,11 +1,9 @@
-FROM python:3.9
+FROM python:3.9-slim
 
-ENV PYTHONUNBUFFERED=1  
-
-ENV OMP_NUM_THREADS=1
-ENV MKL_NUM_THREADS=1
-
-ENV HF_HOME=/tmp/hf_cache \
+ENV PYTHONUNBUFFERED=1 \
+    OMP_NUM_THREADS=8 \
+    MKL_NUM_THREADS=8 \
+    HF_HOME=/tmp/hf_cache \
     TRANSFORMERS_CACHE=/tmp/hf_cache
 
 WORKDIR /code
@@ -15,4 +13,9 @@ RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
 COPY app.py .
 
-CMD uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000} --log-level info --workers 8
+CMD uvicorn app:app \
+    --host 0.0.0.0 \
+    --port ${PORT:-8000} \
+    --workers 1 \
+    --loop uvloop \
+    --http httptools
