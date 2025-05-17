@@ -1,21 +1,13 @@
-FROM python:3.9-slim
+FROM ghcr.io/huggingface/text-generation-inference:latest
 
-ENV PYTHONUNBUFFERED=1 \
-    HF_HOME=/tmp/hf_cache \
+EXPOSE 8000
+
+=ENV HF_HOME=/tmp/hf_cache \
     TRANSFORMERS_CACHE=/tmp/hf_cache
 
-WORKDIR /app
-
-RUN pip install --no-cache-dir vllm
-
-EXPOSE 7860
-
-CMD ["bash", "-lc", "\
-  vllm serve \
-    --model zfir/TypeScriptMate \
-    --host 0.0.0.0 \
-    --port ${PORT:-8000} \
-    --tensor-parallel-size 1 \
-    --max-batch-size 8 \
-    --max-batch-delay 10 \
-"]
+ENTRYPOINT ["text-generation-server", 
+    "--model-id", "zfir/TypeScriptMate",
+    "--revision", "main",
+    "--device", "cpu",
+    "--port", "${PORT:-7860}"
+]
