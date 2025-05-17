@@ -1,15 +1,13 @@
 FROM python:3.9-slim
 
-ENV LOGNAME=root \
-    USER=root
-
 ENV PYTHONUNBUFFERED=1 \
-    TRANSFORMERS_CACHE=/tmp/hf_cache \
     HF_HOME=/tmp/hf_cache \
+    TRANSFORMERS_CACHE=/tmp/hf_cache \
+    LOGNAME=root \
+    USER=root \
     TORCHINDUCTOR_CACHE_DIR=/tmp/hf_cache
 
 WORKDIR /app
-
 RUN pip install --no-cache-dir "vllm[cpu]"
 
 EXPOSE 8000
@@ -22,6 +20,7 @@ CMD bash -lc "\
     --port ${PORT:-8000} \
     --enforce-eager \
     --disable-async-output-proc \
+    --distributed-executor-backend uni \
     --max-num-seqs 8 \
     --scheduler-delay-factor 0.01 \
 "
