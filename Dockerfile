@@ -1,17 +1,17 @@
-# Dockerfile
-FROM ghcr.io/huggingface/text-generation-inference:latest-cpu
+# 1) Base TGI image (pick a specific version or :latest)
+FROM ghcr.io/huggingface/text-generation-inference:3.3.0
 
-# 1) Expose the Spaces port
+# 2) Expose the port that HF Spaces will map (defaults to 7860)
 EXPOSE 8000
 
-# 2) Point HF caches at a writable dir
+# 3) Point all Hugging Face caches at a writable directory
 ENV HF_HOME=/tmp/hf_cache \
     TRANSFORMERS_CACHE=/tmp/hf_cache
 
-# 3) ENTRYPOINT is already set to text-generation-server in the base image.
-#    We just pass our flags via CMD:
-CMD text-generation-server \
-    --model-id zfir/TypeScriptMate \
-    --revision main \
-    --device cpu \
-    --port ${PORT:-8000}
+# 4) ENTRYPOINT is already set to text-generation-launcher in the base image.
+#    We just pass our flags via CMD (shell form so ${PORT:-7860} expands).
+CMD text-generation-launcher \
+      --model-id zfir/TypeScriptMate \
+      --revision main \
+      --disable-custom-kernels \
+      --port ${PORT:-8000}
