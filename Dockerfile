@@ -14,7 +14,7 @@ CMD ["bash", "-lc", "\
   vllm serve \
     --model zfir/TypeScriptMate \
     --host 0.0.0.0 \
-    --port ${PORT:-7860} \
+    --port ${PORT:-8000} \
     --tensor-parallel-size 1 \
     --max-batch-size 8 \
     --max-batch-delay 10 \
