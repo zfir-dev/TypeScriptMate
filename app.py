@@ -1,45 +1,34 @@
-# app.py
-from fastapi import FastAPI
+import threading, os, time, logging
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from huggingface_hub import snapshot_download
-import torch
-import threading
-import time
-import os
-import uvicorn
 
-print("Starting app...")
+# ─── Logging ────────────────────────────────────────────────────────────────
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+logger = logging.getLogger(__name__)
 
-# ─── FastAPI Setup ────────────────────────────────────────────────────────────
+# ─── Globals ────────────────────────────────────────────────────────────────
 app = FastAPI()
+MODEL_NAME = "zfir/TypeScriptMate"
+HF_TOKEN   = os.getenv("HF_TOKEN")
 
-# ─── Config ────────────────────────────────────────────────────────
-MODEL = None
-HF_TOKEN = os.getenv("HF_TOKEN")
-
-print(f"HF_TOKEN: {HF_TOKEN}")
+tokenizer = None
+model     = None
 
 def load_model():
-  if HF_TOKEN:
-    MODEL = snapshot_download(
-      repo_id="zfir/TypeScriptMate",
-      token=HF_TOKEN
-    )
-    print(f"Model files: {os.listdir(MODEL)}")
-  else:
-    MODEL = "model"
-    print("No HF_TOKEN provided, using local model")
+    global tokenizer, model
+    logger.info("Downloading model snapshot…")
+    local_dir = snapshot_download(repo_id=MODEL_NAME, token=HF_TOKEN)
+    logger.info("Snapshot complete, files: %s", os.listdir(local_dir))
 
-  # ─── Load model & tokenizer ────────────────────────────────────────────────────
-  print(f"Loading model...")
-  tokenizer = AutoTokenizer.from_pretrained(MODEL)
-  tokenizer.pad_token = tokenizer.eos_token
-  model = AutoModelForCausalLM.from_pretrained(MODEL)
-  model.eval()
-  print(f"Model {MODEL} loaded.")
-  return tokenizer, model
+    logger.info("Loading tokenizer and model into memory…")
+    tokenizer = AutoTokenizer.from_pretrained(local_dir)
+    tokenizer.pad_token = tokenizer.eos_token
+    model = AutoModelForCausalLM.from_pretrained(local_dir).eval()
+    logger.info("Model loaded.")
 
+# kick off immediately, but non-blocking
 threading.Thread(target=load_model, daemon=True).start()
 
 class CompletionRequest(BaseModel):
@@ -48,26 +37,22 @@ class CompletionRequest(BaseModel):
 
 @app.post("/complete")
 def complete(req: CompletionRequest):
-    if MODEL is None:
-        return {"error": "Model not loaded"}
+    if model is None or tokenizer is None:
+        raise HTTPException(503, "Model not yet loaded, please retry in a few seconds.")
     start = time.time()
     inputs = tokenizer(req.prompt, return_tensors="pt")
     outputs = model.generate(
-        **inputs,
-        max_new_tokens=req.max_tokens,
-        do_sample=False,
-        pad_token_id=tokenizer.eos_token_id
+        **inputs, max_new_tokens=req.max_tokens, pad_token_id=tokenizer.eos_token_id
     )
-    result = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    print(f"Completed request in {time.time() - start:.2f}s")
-    return {"completion": result[len(req.prompt):]}
+    text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    logger.info("Request completed in %.2fs", time.time() - start)
+    return {"completion": text[len(req.prompt):]}
 
 @app.get("/")
 @app.get("/health")
 def health_check():
     return {
-        "status": "healthy",
-        "timestamp": time.time(),
-        "model_loaded": MODEL is not None,
-        "model": MODEL,
+        "status":        "healthy",
+        "model_loaded":  model is not None,
+        "timestamp":     time.time(),
     }
