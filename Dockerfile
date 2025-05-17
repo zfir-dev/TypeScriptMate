@@ -1,21 +1,18 @@
-# Dockerfile
-FROM ghcr.io/huggingface/text-generation-inference:3.3.0
+FROM python:3.9
 
-# 1) Expose the port Spaces will map (defaults to $PORT=8000)
-EXPOSE 8000
+ENV PYTHONUNBUFFERED=1  
 
-# 2) Use a writable cache (avoids any /root or /.cache permission errors)
+ENV OMP_NUM_THREADS=1
+ENV MKL_NUM_THREADS=1
+
 ENV HF_HOME=/tmp/hf_cache \
-    TRANSFORMERS_CACHE=/tmp/hf_cache \
-    HOME=/tmp
+    TRANSFORMERS_CACHE=/tmp/hf_cache
 
-# 3) Don’t override ENTRYPOINT (it’s already text-generation-server).
-#    Just pass your flags via CMD in exec form:
-CMD [ \
-   "text-generation-server", \
-   "--model-id",      "zfir/TypeScriptMate", \
-   "--revision",      "main", \
-   "--device",        "cpu", \
-   "--disable-custom-kernels", \
-   "--port",          "${PORT:-8000}" \
-]
+WORKDIR /code
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade -r requirements.txt
+
+COPY app.py .
+
+CMD uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000} --log-level info --workers 8
