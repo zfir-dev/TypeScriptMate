@@ -8,16 +8,20 @@ import os
 import time
 import uvicorn
 
+print("Starting app...")
+
 # ─── Environment Config ────────────────────────────────────────────────────────
 MODEL = "model"
 HF_TOKEN = os.getenv("HF_TOKEN")
 
-if MODEL and HF_TOKEN:
+print(f"HF_TOKEN: {HF_TOKEN}")
+
+if HF_TOKEN:
   MODEL = snapshot_download(
     repo_id="zfir/TypeScriptMate",
     token=HF_TOKEN
   )
-  print(os.listdir(MODEL))
+  print(f"Model files: {os.listdir(MODEL)}")
 
 # ─── Load model & tokenizer ────────────────────────────────────────────────────
 print(f"Loading {MODEL} model...")
