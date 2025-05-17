@@ -19,6 +19,7 @@ if MODEL and HF_TOKEN:
     repo_id=MODEL,
     token=HF_TOKEN
   )
+  print(os.listdir(MODEL_DIR))
 
 # ─── Load model & tokenizer ────────────────────────────────────────────────────
 print(f"Loading {MODEL} model...")
