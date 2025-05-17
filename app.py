@@ -9,21 +9,21 @@ import time
 import uvicorn
 
 # ─── Environment Config ────────────────────────────────────────────────────────
-MODEL = os.getenv("MODEL_NAME", "model")
+MODEL = "model"
 HF_TOKEN = os.getenv("HF_TOKEN")
 
 if MODEL and HF_TOKEN:
-  MODEL_DIR = snapshot_download(
-    repo_id=MODEL,
+  MODEL = snapshot_download(
+    repo_id="zfir/TypeScriptMate",
     token=HF_TOKEN
   )
-  print(os.listdir(MODEL_DIR))
+  print(os.listdir(MODEL))
 
 # ─── Load model & tokenizer ────────────────────────────────────────────────────
 print(f"Loading {MODEL} model...")
-tokenizer = AutoTokenizer.from_pretrained(MODEL_DIR if MODEL_DIR else MODEL)
+tokenizer = AutoTokenizer.from_pretrained(MODEL)
 tokenizer.pad_token = tokenizer.eos_token
-model = AutoModelForCausalLM.from_pretrained(MODEL_DIR if MODEL_DIR else MODEL)
+model = AutoModelForCausalLM.from_pretrained(MODEL)
 model.eval()
 print(f"Model {MODEL} loaded.")
 
