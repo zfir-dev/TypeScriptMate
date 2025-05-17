@@ -16,8 +16,7 @@ HF_TOKEN = os.getenv("HF_TOKEN")
 
 MODEL_DIR = snapshot_download(
   repo_id=MODEL,
-  token=HF_TOKEN,
-  cache_dir="./model"
+  token=HF_TOKEN
 )
 
 # ─── Load model & tokenizer ────────────────────────────────────────────────────
