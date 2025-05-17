@@ -13,7 +13,6 @@ print("Starting app...")
 # ─── Environment Config ────────────────────────────────────────────────────────
 MODEL = "model"
 HF_TOKEN = os.getenv("HF_TOKEN")
-PORT = int(os.getenv("PORT", "7860"))  # Default to 7860 if PORT not set
 
 print(f"HF_TOKEN: {HF_TOKEN}")
 
@@ -62,6 +61,3 @@ def health_check():
         "model": MODEL,
         "timestamp": time.time()
     }
-
-if __name__ == "__main__":
-    uvicorn.run("app:app", host="0.0.0.0", port=PORT, log_level="debug")

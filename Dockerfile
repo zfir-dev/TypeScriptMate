@@ -10,5 +10,4 @@ RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
 COPY ./app.py /code/app.py
 
-EXPOSE 7860
-CMD ["python", "app.py"]
+CMD uvicorn app:app --host 0.0.0.0 --port ${PORT:-7860} --log-level ${LOG_LEVEL:-debug}
