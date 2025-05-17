@@ -1,5 +1,8 @@
 FROM python:3.9
 
+ENV HF_HOME=/tmp/hf_cache
+ENV TRANSFORMERS_CACHE=/tmp/hf_cache
+
 WORKDIR /code
 
 COPY ./requirements.txt /code/requirements.txt
