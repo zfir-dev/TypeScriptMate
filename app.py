@@ -47,18 +47,18 @@ def load_model():
         model_q = torch.quantization.quantize_dynamic(
             base_model, {torch.nn.Linear}, dtype=torch.qint8
         )
-        print("✔ quantization succeeded")
+        print("Quantization succeeded")
     except Exception as e:
-        print(f"⚠ quantization failed ({e}), using float32 model")
+        print(f"Quantization failed ({e}), using float32 model")
         model_q = base_model
 
     try:
         print("Attempting torch.compile…")
         model_compiled = torch.compile(model_q)
         model = model_compiled
-        print("✔ compile succeeded")
+        print("Compile succeeded")
     except Exception as e:
-        print(f"⚠ compile failed ({e}), using uncompiled model")
+        print(f"Compile failed ({e}), using uncompiled model")
         model = model_q
 
     model.eval()
@@ -93,7 +93,7 @@ def health_check():
 async def complete(req: CompletionRequest):
     if model is None:
         return {"error": "Model still loading…"}
-
+    start_time = time.time()
     inputs = tokenizer(req.prompt, return_tensors="pt")
     with torch.inference_mode():
         outputs = await run_in_threadpool(
@@ -104,6 +104,7 @@ async def complete(req: CompletionRequest):
                 pad_token_id=tokenizer.eos_token_id
             )
         )
-
     text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    end_time = time.time()
+    print(f"Completion time: {end_time - start_time} seconds")
     return {"completion": text[len(req.prompt):]}
