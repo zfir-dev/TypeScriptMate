@@ -4,8 +4,9 @@ from pydantic import BaseModel
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from huggingface_hub import snapshot_download
 import torch
-import os
+import threading
 import time
+import os
 import uvicorn
 
 print("Starting app...")
