@@ -10,4 +10,5 @@ RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
 COPY ./app.py /code/app.py
 
+EXPOSE 7860
 CMD ["python", "app.py"]
