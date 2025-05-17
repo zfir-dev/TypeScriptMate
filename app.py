@@ -2,6 +2,7 @@ import os
 import time
 import threading
 
+os.environ["OMP_NUM_THREADS"] = "8"
 os.environ["MKL_NUM_THREADS"] = "8"
 os.environ["TORCHINDUCTOR_CACHE_DIR"] = "/tmp/torch_inductor_cache"
 os.makedirs(os.environ["TORCHINDUCTOR_CACHE_DIR"], exist_ok=True)
@@ -12,6 +13,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from huggingface_hub import snapshot_download
+from starlette.concurrency import run_in_threadpool
 
 torch.set_num_threads(8)
 torch.set_num_interop_threads(2)
@@ -26,12 +28,8 @@ model: torch.nn.Module = None
 
 def load_model():
     global MODEL_PATH, tokenizer, model
-
     if HF_TOKEN:
-        MODEL_PATH = snapshot_download(
-            repo_id="zfir/TypeScriptMate",
-            token=HF_TOKEN
-        )
+        MODEL_PATH = snapshot_download(repo_id="zfir/TypeScriptMate", token=HF_TOKEN)
         print(f"Model files: {os.listdir(MODEL_PATH)}")
     else:
         MODEL_PATH = "model"
@@ -41,22 +39,26 @@ def load_model():
     tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
     tokenizer.pad_token = tokenizer.eos_token
 
-    print("Loading model…")
+    print("Loading base model…")
     base_model = AutoModelForCausalLM.from_pretrained(MODEL_PATH).eval()
 
-    print("Quantizing model to int8…")
-    model_q = torch.quantization.quantize_dynamic(
-        base_model,
-        {torch.nn.Linear},
-        dtype=torch.qint8
-    )
+    try:
+        print("Attempting dynamic int8 quantization…")
+        model_q = torch.quantization.quantize_dynamic(
+            base_model, {torch.nn.Linear}, dtype=torch.qint8
+        )
+        print("✔ quantization succeeded")
+    except Exception as e:
+        print(f"⚠ quantization failed ({e}), using float32 model")
+        model_q = base_model
 
     try:
-        print("Compiling model…")
-        model = torch.compile(model_q)
+        print("Attempting torch.compile…")
+        model_compiled = torch.compile(model_q)
+        model = model_compiled
         print("✔ compile succeeded")
     except Exception as e:
-        print(f"⚠ compile failed ({e}); using quantized model")
+        print(f"⚠ compile failed ({e}), using uncompiled model")
         model = model_q
 
     model.eval()
@@ -94,3 +96,14 @@ async def complete(req: CompletionRequest):
 
     inputs = tokenizer(req.prompt, return_tensors="pt")
     with torch.inference_mode():
+        outputs = await run_in_threadpool(
+            lambda: model.generate(
+                **inputs,
+                max_new_tokens=req.max_tokens,
+                do_sample=False,
+                pad_token_id=tokenizer.eos_token_id
+            )
+        )
+
+    text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    return {"completion": text[len(req.prompt):]}
