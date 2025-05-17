@@ -1,7 +1,7 @@
 # app.py
 from fastapi import FastAPI
 from pydantic import BaseModel
-from transformers import GPT2LMHeadModel, GPT2Tokenizer
+from transformers import AutoTokenizer, AutoModelForCausalLM
 from huggingface_hub import snapshot_download
 import torch
 import os
@@ -14,16 +14,17 @@ os.environ["TRANSFORMERS_CACHE"] = "/tmp/huggingface"
 MODEL = os.getenv("MODEL_NAME", "model")
 HF_TOKEN = os.getenv("HF_TOKEN")
 
-MODEL_DIR = snapshot_download(
-  repo_id=MODEL,
-  token=HF_TOKEN
-)
+if MODEL and HF_TOKEN:
+  MODEL_DIR = snapshot_download(
+    repo_id=MODEL,
+    token=HF_TOKEN
+  )
 
 # ─── Load model & tokenizer ────────────────────────────────────────────────────
 print(f"Loading {MODEL} model...")
-tokenizer = GPT2Tokenizer.from_pretrained(MODEL_DIR)
+tokenizer = AutoTokenizer.from_pretrained(MODEL_DIR if MODEL_DIR else MODEL)
 tokenizer.pad_token = tokenizer.eos_token
-model = GPT2LMHeadModel.from_pretrained(MODEL_DIR)
+model = AutoModelForCausalLM.from_pretrained(MODEL_DIR if MODEL_DIR else MODEL)
 model.eval()
 print(f"Model {MODEL} loaded.")
 
