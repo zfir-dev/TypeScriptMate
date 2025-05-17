@@ -10,31 +10,36 @@ import uvicorn
 
 print("Starting app...")
 
-# ─── Environment Config ────────────────────────────────────────────────────────
-MODEL = "model"
+# ─── FastAPI Setup ────────────────────────────────────────────────────────────
+app = FastAPI()
+
+# ─── Config ────────────────────────────────────────────────────────
+MODEL = None
 HF_TOKEN = os.getenv("HF_TOKEN")
 
 print(f"HF_TOKEN: {HF_TOKEN}")
 
-if HF_TOKEN:
-  MODEL = snapshot_download(
-    repo_id="zfir/TypeScriptMate",
-    token=HF_TOKEN
-  )
-  print(f"Model files: {os.listdir(MODEL)}")
-else:
-  print("No HF_TOKEN provided, using local model")
+def load_model():
+  if HF_TOKEN:
+    MODEL = snapshot_download(
+      repo_id="zfir/TypeScriptMate",
+      token=HF_TOKEN
+    )
+    print(f"Model files: {os.listdir(MODEL)}")
+  else:
+    MODEL = "model"
+    print("No HF_TOKEN provided, using local model")
 
-# ─── Load model & tokenizer ────────────────────────────────────────────────────
-print(f"Loading model...")
-tokenizer = AutoTokenizer.from_pretrained(MODEL)
-tokenizer.pad_token = tokenizer.eos_token
-model = AutoModelForCausalLM.from_pretrained(MODEL)
-model.eval()
-print(f"Model {MODEL} loaded.")
+  # ─── Load model & tokenizer ────────────────────────────────────────────────────
+  print(f"Loading model...")
+  tokenizer = AutoTokenizer.from_pretrained(MODEL)
+  tokenizer.pad_token = tokenizer.eos_token
+  model = AutoModelForCausalLM.from_pretrained(MODEL)
+  model.eval()
+  print(f"Model {MODEL} loaded.")
+  return tokenizer, model
 
-# ─── FastAPI Setup ────────────────────────────────────────────────────────────
-app = FastAPI()
+threading.Thread(target=load_model, daemon=True).start()
 
 class CompletionRequest(BaseModel):
     prompt: str
@@ -42,6 +47,8 @@ class CompletionRequest(BaseModel):
 
 @app.post("/complete")
 def complete(req: CompletionRequest):
+    if MODEL is None:
+        return {"error": "Model not loaded"}
     start = time.time()
     inputs = tokenizer(req.prompt, return_tensors="pt")
     outputs = model.generate(
@@ -54,10 +61,12 @@ def complete(req: CompletionRequest):
     print(f"Completed request in {time.time() - start:.2f}s")
     return {"completion": result[len(req.prompt):]}
 
+@app.get("/")
 @app.get("/health")
 def health_check():
     return {
         "status": "healthy",
+        "timestamp": time.time(),
+        "model_loaded": MODEL is not None,
         "model": MODEL,
-        "timestamp": time.time()
     }
