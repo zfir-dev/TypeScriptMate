@@ -7,7 +7,7 @@ from huggingface_hub import snapshot_download
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-torch.set_num_threads(1)
+torch.set_num_threads(2)
 
 app = FastAPI()
 MODEL_NAME = "zfir/TypeScriptMate"
