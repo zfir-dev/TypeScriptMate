@@ -50,6 +50,7 @@ def complete(req: CompletionRequest):
     print(f"Completed request in {time.time() - start:.2f}s")
     return {"completion": result[len(req.prompt):]}
 
+@app.get("/")
 @app.get("/health")
 def health_check():
     return {
