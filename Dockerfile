@@ -20,6 +20,4 @@ CMD bash -lc "\
     --device cpu \
     --host 0.0.0.0 \
     --port ${PORT:-8000} \
-    --max-batch-size 8 \
-    --max-batch-delay 10 \
 "
