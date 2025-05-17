@@ -1,14 +1,14 @@
-import threading, os, time, logging
+import threading, os, time, logging, torch
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from huggingface_hub import snapshot_download
 
-# ─── Logging ────────────────────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-# ─── Globals ────────────────────────────────────────────────────────────────
+torch.set_num_threads(1)
+
 app = FastAPI()
 MODEL_NAME = "zfir/TypeScriptMate"
 HF_TOKEN   = os.getenv("HF_TOKEN")
@@ -28,7 +28,6 @@ def load_model():
     model = AutoModelForCausalLM.from_pretrained(local_dir).eval()
     logger.info("Model loaded.")
 
-# kick off immediately, but non-blocking
 threading.Thread(target=load_model, daemon=True).start()
 
 class CompletionRequest(BaseModel):
