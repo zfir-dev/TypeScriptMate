@@ -7,6 +7,7 @@ ENV PYTHONUNBUFFERED=1 \
     TRANSFORMERS_CACHE=/tmp/hf_cache
 
 WORKDIR /code
+RUN chmod a+rw /code
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
