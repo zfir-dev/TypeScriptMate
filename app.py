@@ -12,6 +12,7 @@ from huggingface_hub import snapshot_download
 from starlette.concurrency import run_in_threadpool
 from supabase import create_client, Client
 
+MODEL_REPO_ID = os.getenv("MODEL_REPO_ID", "zfir/TypeScriptMate")
 HF_TOKEN = os.getenv("HF_TOKEN")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
@@ -71,8 +72,8 @@ def log_and_upload(event: dict):
 def load_model():
     global MODEL_PATH, tokenizer, model
 
-    if HF_TOKEN:
-        MODEL_PATH = snapshot_download(repo_id="zfir/TypeScriptMate", token=HF_TOKEN)
+    if HF_TOKEN and MODEL_REPO_ID:
+        MODEL_PATH = snapshot_download(repo_id=MODEL_REPO_ID, token=HF_TOKEN)
         print(f"Model files: {os.listdir(MODEL_PATH)}")
     else:
         MODEL_PATH = "model"
