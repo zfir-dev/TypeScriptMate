@@ -35,6 +35,15 @@ try:
 except Exception:
     print("No existing completions.csv in bucket; starting fresh")
 
+try:
+    res = supabase.storage.from_(BUCKET).download(FEEDBACK_LOG)
+    data = res.content if hasattr(res, "content") else res
+    with open(FEEDBACK_LOG, "wb") as f:
+        f.write(data)
+    print("Loaded existing feedbacks.csv from Supabase")
+except Exception:
+    print("No existing feedbacks.csv in bucket; starting fresh")
+
 
 torch.set_num_threads(8)
 torch.set_num_interop_threads(2)
