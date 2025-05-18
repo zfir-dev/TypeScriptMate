@@ -1,18 +1,38 @@
 import os
 import time
 import threading
-
-os.environ["OMP_NUM_THREADS"] = "8"
-os.environ["MKL_NUM_THREADS"] = "8"
-os.environ["TORCHINDUCTOR_CACHE_DIR"] = "/tmp/torch_inductor_cache"
-os.makedirs(os.environ["TORCHINDUCTOR_CACHE_DIR"], exist_ok=True)
+import csv
 
 import torch
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from huggingface_hub import snapshot_download
 from starlette.concurrency import run_in_threadpool
+from supabase import create_client, Client
+
+HF_TOKEN = os.getenv("HF_TOKEN")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+if SUPABASE_URL and SUPABASE_KEY:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+else:
+    supabase = None
+
+BUCKET = "typescriptmate"
+COMPLETION_LOG = "completions.csv"
+
+try:
+    res = supabase.storage.from_(BUCKET).download(COMPLETION_LOG)
+    data = res.content if hasattr(res, "content") else res
+    with open(COMPLETION_LOG, "wb") as f:
+        f.write(data)
+    print("Loaded existing completions.txt from Supabase")
+except Exception:
+    print("No existing completions.txt in bucket; starting fresh")
+
 
 torch.set_num_threads(8)
 torch.set_num_interop_threads(2)
@@ -25,7 +45,27 @@ MODEL_PATH: str = None
 tokenizer: AutoTokenizer = None
 model: torch.nn.Module = None
 
-HF_TOKEN = os.getenv("HF_TOKEN")
+def log_and_upload(event: dict):
+    file_exists = os.path.isfile(COMPLETION_LOG)
+    with open(COMPLETION_LOG, "a", newline="", encoding="utf-8") as csvfile:
+        writer = csv.DictWriter(
+            csvfile,
+            fieldnames=["prompt", "completion", "latency_s", "timestamp"]
+        )
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow(event)
+        
+    if supabase:
+        with open(COMPLETION_LOG, "rb") as file_obj:
+            try:
+                supabase.storage.from_(BUCKET).upload(
+                    COMPLETION_LOG,
+                    file_obj,
+                    file_options={"upsert": "true"},
+                )
+            except Exception as e:
+                print("Failed to upload logs:", e)
 
 
 def load_model():
@@ -78,7 +118,7 @@ class CompletionRequest(BaseModel):
 
 @app.get("/")
 @app.get("/health")
-def health_check():
+def index_and_health():
     return {
         "status": "healthy",
         "model_loaded": model is not None,
@@ -86,27 +126,60 @@ def health_check():
         "time": time.time()
     }
 
+@app.get("/logs", response_class=HTMLResponse)
+def logs():
+    try:
+        with open(COMPLETION_LOG, newline="", encoding="utf-8") as f:
+            reader = csv.reader(f)
+            rows = list(reader)
+    except FileNotFoundError:
+        return HTMLResponse("<p>No logs found</p>")
+
+    if not rows:
+        return HTMLResponse("<p>No logs found</p>")
+
+    header, *all_entries = rows
+    last_entries = all_entries[-20:] if len(all_entries) > 20 else all_entries
+
+    html = ["<table border='1' style='border-collapse:collapse'>"]
+    html.append("<thead><tr>" + "".join(f"<th style='padding:4px'>{col}</th>" for col in header) + "</tr></thead>")
+    html.append("<tbody>")
+    for entry in last_entries:
+        html.append("<tr>" + "".join(f"<td style='padding:4px'>{cell}</td>" for cell in entry) + "</tr>")
+    html.append("</tbody></table>")
+
+    return HTMLResponse("".join(html))
 
 @app.post("/complete")
-async def complete(req: CompletionRequest):
+async def complete(
+    req: CompletionRequest,
+    background_tasks: BackgroundTasks
+):
     if model is None:
         return {"error": "Model still loading…"}
 
-    start_time = time.time()
+    start = time.time()
     inputs = tokenizer(req.prompt, return_tensors="pt")
-
     with torch.inference_mode():
         outputs = await run_in_threadpool(
             lambda: model.generate(
                 **inputs,
                 max_new_tokens=req.max_tokens,
-                do_sample=False,
-                pad_token_id=tokenizer.eos_token_id
+                pad_token_id=tokenizer.eos_token_id,
             )
         )
 
-    text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    elapsed = time.time() - start_time
-    print(f"Completion time: {elapsed:.3f} seconds")
+    full       = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    completion = full[len(req.prompt):]
+    latency    = time.time() - start
 
-    return {"completion": text[len(req.prompt):]}
+    event = {
+        "prompt": req.prompt,
+        "completion": completion,
+        "latency_s": latency,
+        "timestamp": time.time(),
+    }
+
+    background_tasks.add_task(log_and_upload, event)
+
+    return {"completion": completion}
