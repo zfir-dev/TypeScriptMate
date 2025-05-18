@@ -30,9 +30,9 @@ try:
     data = res.content if hasattr(res, "content") else res
     with open(COMPLETION_LOG, "wb") as f:
         f.write(data)
-    print("Loaded existing completions.txt from Supabase")
+    print("Loaded existing completions.csv from Supabase")
 except Exception:
-    print("No existing completions.txt in bucket; starting fresh")
+    print("No existing completions.csv in bucket; starting fresh")
 
 
 torch.set_num_threads(8)
