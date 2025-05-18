@@ -1,4 +1,5 @@
 __pycache__
 model/
+completions.csv
 
 .DS_Store
