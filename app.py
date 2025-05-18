@@ -23,6 +23,7 @@ else:
     supabase = None
 
 BUCKET = "typescriptmate"
+FEEDBACK_LOG = "feedbacks.csv"
 COMPLETION_LOG = "completions.csv"
 
 try:
@@ -46,7 +47,29 @@ MODEL_PATH: str = None
 tokenizer: AutoTokenizer = None
 model: torch.nn.Module = None
 
-def log_and_upload(event: dict):
+def write_feedback_log(event: dict):
+    is_new = not os.path.isfile(FEEDBACK_LOG)
+    with open(FEEDBACK_LOG, "a", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=["prompt","completion","action","timestamp"]
+        )
+        if is_new:
+            writer.writeheader()
+        writer.writerow(event)
+    
+    if supabase:
+        with open(FEEDBACK_LOG, "rb") as file_obj:
+            try:
+                supabase.storage.from_(BUCKET).upload(
+                    FEEDBACK_LOG,
+                    file_obj,
+                    file_options={"upsert": "true"},
+                )
+            except Exception as e:
+                print("Failed to upload logs:", e)
+
+def write_completion_log(event: dict):
     file_exists = os.path.isfile(COMPLETION_LOG)
     with open(COMPLETION_LOG, "a", newline="", encoding="utf-8") as csvfile:
         writer = csv.DictWriter(
@@ -116,6 +139,11 @@ class CompletionRequest(BaseModel):
     prompt: str
     max_tokens: int = 40
 
+class Feedback(BaseModel):
+    prompt: str
+    completion: str
+    action: str
+    timestamp: float
 
 @app.get("/")
 @app.get("/health")
@@ -181,6 +209,11 @@ async def complete(
         "timestamp": time.time(),
     }
 
-    background_tasks.add_task(log_and_upload, event)
+    background_tasks.add_task(write_completion_log, event)
 
     return {"completion": completion}
+
+@app.post("/feedbacks")
+def feedback_endpoint(ev: Feedback, background_tasks: BackgroundTasks):
+    background_tasks.add_task(write_feedback_log, ev.dict())
+    return {"status": "ok"}
