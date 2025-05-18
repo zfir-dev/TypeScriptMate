@@ -118,17 +118,17 @@ def load_model():
     print("Loading base model…")
     base_model = AutoModelForCausalLM.from_pretrained(MODEL_PATH).eval()
 
-    try:
-        print("Attempting dynamic int8 quantization…")
-        model_q = torch.quantization.quantize_dynamic(
-            base_model, {torch.nn.Linear}, dtype=torch.qint8
-        )
-        print("✔ quantization succeeded")
-    except Exception as e:
-        print(f"⚠ quantization failed ({e}); using float32 model")
-        model_q = base_model
+    # try:
+    #     print("Attempting dynamic int8 quantization…")
+    #     model_q = torch.quantization.quantize_dynamic(
+    #         base_model, {torch.nn.Linear}, dtype=torch.qint8
+    #     )
+    #     print("✔ quantization succeeded")
+    # except Exception as e:
+    #     print(f"⚠ quantization failed ({e}); using float32 model")
+    #     model_q = base_model
 
-    model = model_q
+    model = base_model
     model.eval()
 
     print("Warming up (1 token)…")
