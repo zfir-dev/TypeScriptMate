@@ -164,28 +164,62 @@ def index_and_health():
         "time": time.time()
     }
 
+
 @app.get("/logs", response_class=HTMLResponse)
 def logs():
-    try:
-        with open(COMPLETION_LOG, newline="", encoding="utf-8") as f:
-            reader = csv.reader(f)
-            rows = list(reader)
-    except FileNotFoundError:
-        return HTMLResponse("<p>No logs found</p>")
+    def read_last_rows(path: str, max_rows: int = 20):
+        try:
+            with open(path, newline="", encoding="utf-8") as f:
+                rows = list(csv.reader(f))
+        except FileNotFoundError:
+            return [], []
 
-    if not rows:
-        return HTMLResponse("<p>No logs found</p>")
+        if not rows:
+            return [], []
 
-    header, *all_entries = rows
-    last_entries = all_entries[-20:] if len(all_entries) > 20 else all_entries
+        header, *entries = rows
+        last = entries[-max_rows:] if len(entries) > max_rows else entries
+        return header, last
 
-    html = ["<table border='1' style='border-collapse:collapse'>"]
-    html.append("<thead><tr>" + "".join(f"<th style='padding:4px'>{col}</th>" for col in header) + "</tr></thead>")
-    html.append("<tbody>")
-    for entry in last_entries:
-        html.append("<tr>" + "".join(f"<td style='padding:4px'>{cell}</td>" for cell in entry) + "</tr>")
-    html.append("</tbody></table>")
+    comp_header, comp_rows = read_last_rows(COMPLETION_LOG)
+    fb_header, fb_rows     = read_last_rows(FEEDBACK_LOG)
 
+    if not comp_header and not fb_header:
+        return HTMLResponse("<p>No logs or feedbacks found</p>")
+
+    html = ["<html><body style='font-family: sans-serif'>"]
+
+    if comp_header:
+        html.append("<h2>Last 20 Completions</h2>")
+        html.append("<table border='1' style='border-collapse:collapse;margin-bottom:2em'>")
+        html.append("<thead><tr>" +
+            "".join(f"<th style='padding:4px'>{col}</th>" for col in comp_header) +
+            "</tr></thead>")
+        html.append("<tbody>")
+        for row in comp_rows:
+            html.append("<tr>" +
+                "".join(f"<td style='padding:4px'>{cell}</td>" for cell in row) +
+                "</tr>")
+        html.append("</tbody></table>")
+    else:
+        html.append("<p><em>No completion logs found</em></p>")
+
+    if fb_header:
+        html.append("<h2>Last 20 Feedbacks</h2>")
+        html.append("<table border='1' style='border-collapse:collapse'>")
+        html.append("<thead><tr>" +
+            "".join(f"<th style='padding:4px'>{col}</th>" for col in fb_header) +
+            "</tr></thead>")
+        html.append("<tbody>")
+        for row in fb_rows:
+            html.append("<tr>" +
+                "".join(f"<td style='padding:4px'>{cell}</td>" for cell in row) +
+                "</tr>")
+        html.append("</tbody></table>")
+    else:
+        html.append("<p><em>No feedback logs found</em></p>")
+
+    html.append("</body></html>")
     return HTMLResponse("".join(html))
 
 @app.post("/complete")
