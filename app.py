@@ -241,10 +241,11 @@ async def complete(
             )
         )
 
-    full       = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    completion = full[len(req.prompt):]
-    latency    = time.time() - start
+    input_len = inputs["input_ids"].shape[-1]
+    generated_ids = outputs[0][input_len:]
+    completion = tokenizer.decode(generated_ids, skip_special_tokens=True)
 
+    latency = time.time() - start
     event = {
         "prompt": req.prompt,
         "completion": completion,
