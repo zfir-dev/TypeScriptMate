@@ -135,7 +135,7 @@ def load_model():
     model.eval()
 
     print("Warming up (1 token)…")
-    dummy = tokenizer("Hi", return_tensors="pt")
+    dummy = tokenizer("console.log", return_tensors="pt")
     with torch.inference_mode():
         _ = model.generate(**dummy, max_new_tokens=1)
     print("Warming up (40 tokens)…")
@@ -235,8 +235,6 @@ async def complete(
 
     input_len = inputs["input_ids"].shape[-1]
     generated_ids = outputs[0][input_len:]
-
-
     completion = tokenizer.decode(generated_ids, skip_special_tokens=True)
 
     latency = time.time() - start
@@ -248,9 +246,6 @@ async def complete(
     }
 
     background_tasks.add_task(write_completion_log, event)
-
-    print(f"Prompt: {req.prompt}")
-    print(f"Completion: {completion}")
 
     return {"completion": completion}
 
