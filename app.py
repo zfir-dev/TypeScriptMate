@@ -15,7 +15,7 @@ from peft import PeftModel, PeftConfig
 
 MODEL_REPO_ID = os.getenv("MODEL_REPO_ID", "zfir/TypeScriptMate")
 HF_TOKEN = os.getenv("HF_TOKEN")
-USE_LORA = bool(int(os.getenv("USE_LORA", "0")))
+USE_LORA = bool(int(os.getenv("USE_LORA", "1")))
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
@@ -95,7 +95,7 @@ def write_completion_log(event: dict):
 
 
 def load_model():
-    global tokenizer, model, processor
+    global tokenizer, model
 
     if HF_TOKEN and MODEL_REPO_ID:
         MODEL_PATH = snapshot_download(repo_id=MODEL_REPO_ID, token=HF_TOKEN)
@@ -110,9 +110,11 @@ def load_model():
         print("Loading adapter config…")
         adapter_config = PeftConfig.from_pretrained(MODEL_PATH)
 
-        print("Loading processor…")
-        processor = AutoProcessor.from_pretrained(adapter_config.base_model_name_or_path)
         base_model_name_or_path = adapter_config.base_model_name_or_path
+
+        print("Loading tokenizer…")
+        tokenizer = AutoTokenizer.from_pretrained(base_model_name_or_path)
+        tokenizer.pad_token = tokenizer.eos_token
 
         print("Loading base model…")
         base_model = AutoModelForCausalLM.from_pretrained(
@@ -133,10 +135,7 @@ def load_model():
     model.eval()
 
     print("Warming up (1 token)…")
-    if USE_LORA:
-        dummy = processor("Hi", return_tensors="pt")
-    else:
-        dummy = tokenizer("Hi", return_tensors="pt")
+    dummy = tokenizer("Hi", return_tensors="pt")
     with torch.inference_mode():
         _ = model.generate(**dummy, max_new_tokens=1)
     print("Warming up (40 tokens)…")
@@ -224,10 +223,7 @@ async def complete(
         return {"error": "Model still loading…"}
 
     start = time.time()
-    if USE_LORA:
-        inputs = processor(req.prompt, return_tensors="pt")
-    else:
-        inputs = tokenizer(req.prompt, return_tensors="pt")
+    inputs = tokenizer(req.prompt, return_tensors="pt")
     with torch.inference_mode():
         outputs = await run_in_threadpool(
             lambda: model.generate(
@@ -239,6 +235,8 @@ async def complete(
 
     input_len = inputs["input_ids"].shape[-1]
     generated_ids = outputs[0][input_len:]
+
+
     completion = tokenizer.decode(generated_ids, skip_special_tokens=True)
 
     latency = time.time() - start
@@ -250,6 +248,9 @@ async def complete(
     }
 
     background_tasks.add_task(write_completion_log, event)
+
+    print(f"Prompt: {req.prompt}")
+    print(f"Completion: {completion}")
 
     return {"completion": completion}
 
