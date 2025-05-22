@@ -7,13 +7,15 @@ import torch
 from fastapi import FastAPI, BackgroundTasks
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer, AutoModelForCausalLM, AutoProcessor
 from huggingface_hub import snapshot_download
 from starlette.concurrency import run_in_threadpool
 from supabase import create_client, Client
+from peft import PeftModel, PeftConfig
 
 MODEL_REPO_ID = os.getenv("MODEL_REPO_ID", "zfir/TypeScriptMate")
 HF_TOKEN = os.getenv("HF_TOKEN")
+USE_LORA = bool(int(os.getenv("USE_LORA", "0")))
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
@@ -26,24 +28,15 @@ BUCKET = "typescriptmate"
 FEEDBACK_LOG = "feedbacks.csv"
 COMPLETION_LOG = "completions.csv"
 
-try:
-    res = supabase.storage.from_(BUCKET).download(COMPLETION_LOG)
-    data = res.content if hasattr(res, "content") else res
-    with open(COMPLETION_LOG, "wb") as f:
-        f.write(data)
-    print("Loaded existing completions.csv from Supabase")
-except Exception:
-    print("No existing completions.csv in bucket; starting fresh")
-
-try:
-    res = supabase.storage.from_(BUCKET).download(FEEDBACK_LOG)
-    data = res.content if hasattr(res, "content") else res
-    with open(FEEDBACK_LOG, "wb") as f:
-        f.write(data)
-    print("Loaded existing feedbacks.csv from Supabase")
-except Exception:
-    print("No existing feedbacks.csv in bucket; starting fresh")
-
+for log_name in (COMPLETION_LOG, FEEDBACK_LOG):
+    try:
+        res = supabase.storage.from_(BUCKET).download(log_name)
+        data = res.content if hasattr(res, "content") else res
+        with open(log_name, "wb") as f:
+            f.write(data)
+        print(f"Loaded existing {log_name} from Supabase")
+    except Exception:
+        print(f"No existing {log_name} in bucket; starting fresh")
 
 torch.set_num_threads(8)
 torch.set_num_interop_threads(2)
@@ -61,7 +54,7 @@ def write_feedback_log(event: dict):
     with open(FEEDBACK_LOG, "a", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(
             f,
-            fieldnames=["prompt","completion","action","timestamp"]
+            fieldnames=["prompt", "completion", "action", "timestamp"]
         )
         if is_new:
             writer.writeheader()
@@ -76,7 +69,7 @@ def write_feedback_log(event: dict):
                     file_options={"upsert": "true"},
                 )
             except Exception as e:
-                print("Failed to upload logs:", e)
+                print("Failed to upload feedback log:", e)
 
 def write_completion_log(event: dict):
     file_exists = os.path.isfile(COMPLETION_LOG)
@@ -98,11 +91,11 @@ def write_completion_log(event: dict):
                     file_options={"upsert": "true"},
                 )
             except Exception as e:
-                print("Failed to upload logs:", e)
+                print("Failed to upload completion log:", e)
 
 
 def load_model():
-    global MODEL_PATH, tokenizer, model
+    global tokenizer, model, processor
 
     if HF_TOKEN and MODEL_REPO_ID:
         MODEL_PATH = snapshot_download(repo_id=MODEL_REPO_ID, token=HF_TOKEN)
@@ -111,28 +104,39 @@ def load_model():
         MODEL_PATH = "model"
         print("No HF_TOKEN; using local ./model directory")
 
-    print("Loading tokenizer…")
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
-    tokenizer.pad_token = tokenizer.eos_token
+    if USE_LORA:
+        print("Loading LoRA model…")
 
-    print("Loading base model…")
-    base_model = AutoModelForCausalLM.from_pretrained(MODEL_PATH).eval()
+        print("Loading adapter config…")
+        adapter_config = PeftConfig.from_pretrained(MODEL_PATH)
 
-    # try:
-    #     print("Attempting dynamic int8 quantization…")
-    #     model_q = torch.quantization.quantize_dynamic(
-    #         base_model, {torch.nn.Linear}, dtype=torch.qint8
-    #     )
-    #     print("✔ quantization succeeded")
-    # except Exception as e:
-    #     print(f"⚠ quantization failed ({e}); using float32 model")
-    #     model_q = base_model
+        print("Loading processor…")
+        processor = AutoProcessor.from_pretrained(adapter_config.base_model_name_or_path)
+        base_model_name_or_path = adapter_config.base_model_name_or_path
 
-    model = base_model
+        print("Loading base model…")
+        base_model = AutoModelForCausalLM.from_pretrained(
+            base_model_name_or_path,
+            torch_dtype=torch.float16,
+            local_files_only=True
+        )
+        model = PeftModel.from_pretrained(base_model, MODEL_PATH, local_files_only=True)
+    else:
+        print("Loading tokenizer…")
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
+        tokenizer.pad_token = tokenizer.eos_token
+
+        print("Loading base model…")
+        base_model = AutoModelForCausalLM.from_pretrained(MODEL_PATH).eval()
+        model = base_model
+
     model.eval()
 
     print("Warming up (1 token)…")
-    dummy = tokenizer("Hi", return_tensors="pt")
+    if USE_LORA:
+        dummy = processor("Hi", return_tensors="pt")
+    else:
+        dummy = tokenizer("Hi", return_tensors="pt")
     with torch.inference_mode():
         _ = model.generate(**dummy, max_new_tokens=1)
     print("Warming up (40 tokens)…")
@@ -184,22 +188,15 @@ def logs():
     comp_header, comp_rows = read_last_rows(COMPLETION_LOG)
     fb_header, fb_rows     = read_last_rows(FEEDBACK_LOG)
 
-    if not comp_header and not fb_header:
-        return HTMLResponse("<p>No logs or feedbacks found</p>")
-
     html = ["<html><body style='font-family: sans-serif'>"]
 
     if comp_header:
         html.append("<h2>Last 20 Completions</h2>")
         html.append("<table border='1' style='border-collapse:collapse;margin-bottom:2em'>")
-        html.append("<thead><tr>" +
-            "".join(f"<th style='padding:4px'>{col}</th>" for col in comp_header) +
-            "</tr></thead>")
+        html.append("<thead><tr>" + "".join(f"<th style='"" padding:4px'>{col}</th>" for col in comp_header) + "</tr></thead>")
         html.append("<tbody>")
         for row in comp_rows:
-            html.append("<tr>" +
-                "".join(f"<td style='padding:4px'>{cell}</td>" for cell in row) +
-                "</tr>")
+            html.append("<tr>" + "".join(f"<td style='padding:4px'>{cell}</td>" for cell in row) + "</tr>")
         html.append("</tbody></table>")
     else:
         html.append("<p><em>No completion logs found</em></p>")
@@ -207,14 +204,10 @@ def logs():
     if fb_header:
         html.append("<h2>Last 20 Feedbacks</h2>")
         html.append("<table border='1' style='border-collapse:collapse'>")
-        html.append("<thead><tr>" +
-            "".join(f"<th style='padding:4px'>{col}</th>" for col in fb_header) +
-            "</tr></thead>")
+        html.append("<thead><tr>" + "".join(f"<th style='padding:4px'>{col}</th>" for col in fb_header) + "</tr></thead>")
         html.append("<tbody>")
         for row in fb_rows:
-            html.append("<tr>" +
-                "".join(f"<td style='padding:4px'>{cell}</td>" for cell in row) +
-                "</tr>")
+            html.append("<tr>" + "".join(f"<td style='padding:4px'>{cell}</td>" for cell in row) + "</tr>")
         html.append("</tbody></table>")
     else:
         html.append("<p><em>No feedback logs found</em></p>")
@@ -231,7 +224,10 @@ async def complete(
         return {"error": "Model still loading…"}
 
     start = time.time()
-    inputs = tokenizer(req.prompt, return_tensors="pt")
+    if USE_LORA:
+        inputs = processor(req.prompt, return_tensors="pt")
+    else:
+        inputs = tokenizer(req.prompt, return_tensors="pt")
     with torch.inference_mode():
         outputs = await run_in_threadpool(
             lambda: model.generate(

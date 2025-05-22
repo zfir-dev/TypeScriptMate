@@ -1,5 +1,6 @@
 __pycache__
 model/
 completions.csv
+feedbacks.csv
 
 .DS_Store
