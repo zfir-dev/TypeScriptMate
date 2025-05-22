@@ -192,7 +192,7 @@ def logs():
     if comp_header:
         html.append("<h2>Last 20 Completions</h2>")
         html.append("<table border='1' style='border-collapse:collapse;margin-bottom:2em'>")
-        html.append("<thead><tr>" + "".join(f"<th style='"" padding:4px'>{col}</th>" for col in comp_header) + "</tr></thead>")
+        html.append("<thead><tr>" + "".join(f"<th style='padding:4px'>{col}</th>" for col in comp_header) + "</tr></thead>")
         html.append("<tbody>")
         for row in comp_rows:
             html.append("<tr>" + "".join(f"<td style='padding:4px'>{cell}</td>" for cell in row) + "</tr>")
