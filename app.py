@@ -7,7 +7,7 @@ import torch
 from fastapi import FastAPI, BackgroundTasks
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
-from transformers import AutoTokenizer, AutoModelForCausalLM, AutoProcessor
+from transformers import GPT2TokenizerFast, AutoModelForCausalLM
 from huggingface_hub import snapshot_download
 from starlette.concurrency import run_in_threadpool
 from supabase import create_client, Client
@@ -46,7 +46,7 @@ print("Starting app…")
 app = FastAPI()
 
 MODEL_PATH: str = None
-tokenizer: AutoTokenizer = None
+tokenizer: GPT2TokenizerFast = None
 model: torch.nn.Module = None
 
 def write_feedback_log(event: dict):
@@ -113,7 +113,7 @@ def load_model():
         base_model_name_or_path = adapter_config.base_model_name_or_path
 
         print("Loading tokenizer…")
-        tokenizer = AutoTokenizer.from_pretrained(base_model_name_or_path)
+        tokenizer = GPT2TokenizerFast.from_pretrained(base_model_name_or_path)
         tokenizer.pad_token = tokenizer.eos_token
 
         print("Loading base model…")
@@ -125,7 +125,7 @@ def load_model():
         model = PeftModel.from_pretrained(base_model, MODEL_PATH, local_files_only=True)
     else:
         print("Loading tokenizer…")
-        tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
+        tokenizer = GPT2TokenizerFast.from_pretrained(MODEL_PATH)
         tokenizer.pad_token = tokenizer.eos_token
 
         print("Loading base model…")
