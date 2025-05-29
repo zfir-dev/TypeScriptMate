@@ -119,8 +119,7 @@ def load_model():
         print("Loading base model…")
         base_model = AutoModelForCausalLM.from_pretrained(
             base_model_name_or_path,
-            torch_dtype=torch.float16,
-            local_files_only=True
+            torch_dtype=torch.float16
         )
         model = PeftModel.from_pretrained(base_model, MODEL_PATH, local_files_only=True)
     else:
