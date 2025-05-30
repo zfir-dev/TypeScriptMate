@@ -54,7 +54,7 @@ def write_feedback_log(event: dict):
     with open(FEEDBACK_LOG, "a", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(
             f,
-            fieldnames=["prompt", "completion", "action", "timestamp"]
+            fieldnames=["prompt", "model", "completion", "action", "timestamp"]
         )
         if is_new:
             writer.writeheader()
@@ -151,9 +151,7 @@ class CompletionRequest(BaseModel):
     max_tokens: int = 40
 
 class Feedback(BaseModel):
-    model: str = MODEL_REPO_ID
-    if not MODEL_REPO_ID:
-        model: str = "local"
+    model: str
     prompt: str
     completion: str
     action: str
@@ -242,6 +240,7 @@ async def complete(
     latency = time.time() - start
     event = {
         "prompt": req.prompt,
+        "model": MODEL_REPO_ID if MODEL_REPO_ID else "local",
         "completion": completion,
         "latency_s": latency,
         "timestamp": time.time(),
