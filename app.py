@@ -151,7 +151,6 @@ class CompletionRequest(BaseModel):
     max_tokens: int = 40
 
 class Feedback(BaseModel):
-    model: str
     prompt: str
     completion: str
     action: str
@@ -252,11 +251,12 @@ async def complete(
 
 @app.post("/feedbacks")
 def feedback_endpoint(ev: Feedback, background_tasks: BackgroundTasks):
-    background_tasks.add_task(write_feedback_log, {
+    event = {
         "prompt": ev.prompt,
         "model": MODEL_REPO_ID if MODEL_REPO_ID else "local",
         "completion": ev.completion,
         "action": ev.action,
         "timestamp": ev.timestamp,
-    })
+    }
+    background_tasks.add_task(write_feedback_log, event)
     return {"status": "ok"}
