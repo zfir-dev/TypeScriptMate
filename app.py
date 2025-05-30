@@ -151,6 +151,9 @@ class CompletionRequest(BaseModel):
     max_tokens: int = 40
 
 class Feedback(BaseModel):
+    model: str = MODEL_REPO_ID
+    if not MODEL_REPO_ID:
+        model: str = "local"
     prompt: str
     completion: str
     action: str
