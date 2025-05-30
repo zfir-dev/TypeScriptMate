@@ -76,7 +76,7 @@ def write_completion_log(event: dict):
     with open(COMPLETION_LOG, "a", newline="", encoding="utf-8") as csvfile:
         writer = csv.DictWriter(
             csvfile,
-            fieldnames=["prompt", "completion", "latency_s", "timestamp"]
+            fieldnames=["prompt", "model", "completion", "latency_s", "timestamp"]
         )
         if not file_exists:
             writer.writeheader()
