@@ -2,11 +2,12 @@ import os
 import time
 import threading
 import csv
+import uuid
 
 import torch
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from transformers import GPT2TokenizerFast, AutoModelForCausalLM
 from huggingface_hub import snapshot_download
 from starlette.concurrency import run_in_threadpool
@@ -95,7 +96,7 @@ def write_completion_log(event: dict):
 
 
 def load_model():
-    global tokenizer, model
+    global tokenizer, model, MODEL_PATH
 
     if HF_TOKEN and MODEL_REPO_ID:
         MODEL_PATH = snapshot_download(repo_id=MODEL_REPO_ID, token=HF_TOKEN)
@@ -156,6 +157,17 @@ class Feedback(BaseModel):
     action: str
     timestamp: float
 
+class OpenAICompletionRequest(BaseModel):
+    model: str
+    prompt: str | list[str] = Field(..., description="Either a string or a list of strings")
+    max_tokens: int = 40
+    temperature: float = 1.0
+    top_p: float = 1.0
+    n: int = 1
+    stream: bool = False
+    logprobs: int | None = None
+    stop: str | list[str] | None = None
+
 @app.get("/")
 @app.get("/health")
 def index_and_health():
@@ -213,7 +225,79 @@ def logs():
     html.append("</body></html>")
     return HTMLResponse("".join(html))
 
-@app.post("/complete")
+@app.post("/v1/completions")
+async def complete(
+    req: OpenAICompletionRequest,
+    background_tasks: BackgroundTasks
+):
+    if model is None:
+        return {"error": "Model still loading…"}
+
+    prompts = req.prompt if isinstance(req.prompt, list) else [req.prompt]
+    all_choices = []
+    usage_prompt_tokens = 0
+    usage_completion_tokens = 0
+
+    start_all = time.time()
+
+    for idx, single_prompt in enumerate(prompts):
+        inputs = tokenizer(single_prompt, return_tensors="pt")
+        prompt_len = inputs["input_ids"].shape[-1]
+
+        usage_prompt_tokens += prompt_len
+
+        # Generate `n` completions per prompt
+        for choice_idx in range(req.n):
+            with torch.inference_mode():
+                outputs = await run_in_threadpool(
+                    lambda: model.generate(
+                        **inputs,
+                        max_new_tokens=req.max_tokens,
+                        pad_token_id=tokenizer.eos_token_id,
+                        temperature=req.temperature,
+                        top_p=req.top_p,
+                        do_sample=(req.temperature != 0.0 or req.top_p < 1.0),
+                    )
+                )
+
+            generated_ids = outputs[0][prompt_len:]
+            completion_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
+            completion_len = generated_ids.shape[-1]
+            usage_completion_tokens += completion_len
+
+            all_choices.append({
+                "text": completion_text,
+                "index": float(idx * req.n + choice_idx),
+                "logprobs": None,
+                "finish_reason": "length"
+            })
+
+    total_tokens = usage_prompt_tokens + usage_completion_tokens
+    elapsed = time.time() - start_all
+
+    if prompts:
+        event = {
+            "prompt": prompts[0],
+            "model": req.model,
+            "latency_s": elapsed,
+            "timestamp": time.time(),
+        }
+        background_tasks.add_task(write_completion_log, event)
+
+    return {
+        "id": str(uuid.uuid4()),
+        "object": "text_completion",
+        "created": int(time.time()),
+        "model": req.model,
+        "choices": all_choices,
+        "usage": {
+            "prompt_tokens": usage_prompt_tokens,
+            "completion_tokens": usage_completion_tokens,
+            "total_tokens": total_tokens
+        }
+    }
+
+@app.post("/legacy-complete")
 async def complete(
     req: CompletionRequest,
     background_tasks: BackgroundTasks
@@ -248,6 +332,7 @@ async def complete(
     background_tasks.add_task(write_completion_log, event)
 
     return {"completion": completion}
+
 
 @app.post("/feedbacks")
 def feedback_endpoint(ev: Feedback, background_tasks: BackgroundTasks):
