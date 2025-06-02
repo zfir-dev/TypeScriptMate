@@ -1,5 +1,5 @@
 ---
-title: TypeScriptMate-API
+title: TypeScriptMate
 emoji: 🤗
 colorFrom: red
 colorTo: blue
@@ -9,7 +9,7 @@ app_file: app.py
 pinned: false
 ---
 
-# TypeScriptMate-API
+# TypeScriptMate
 
 Running Locally
 
