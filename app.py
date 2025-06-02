@@ -3,6 +3,7 @@ import time
 import threading
 import csv
 import uuid
+from typing import Union, List, Optional
 
 import torch
 from fastapi import FastAPI, BackgroundTasks, HTTPException
@@ -159,14 +160,14 @@ class Feedback(BaseModel):
 
 class OpenAICompletionRequest(BaseModel):
     model: str
-    prompt: str | list[str] = Field(..., description="Either a string or a list of strings")
+    prompt: Union[str, List[str]] = Field(..., description="Either a string or a list of strings")
     max_tokens: int = 40
     temperature: float = 1.0
     top_p: float = 1.0
     n: int = 1
     stream: bool = False
-    logprobs: int | None = None
-    stop: str | list[str] | None = None  # could be a single stop string or list of them
+    logprobs: Optional[int] = None
+    stop: Optional[Union[str, List[str]]] = None
 
 @app.post("/v1/completions")
 async def complete(
