@@ -3,11 +3,12 @@ import time
 import threading
 import csv
 import uuid
+import json
 from typing import Union, List, Optional
 
 import torch
 from fastapi import FastAPI, BackgroundTasks, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from transformers import GPT2TokenizerFast, AutoModelForCausalLM
 from huggingface_hub import snapshot_download
@@ -235,6 +236,48 @@ async def complete(
         raise HTTPException(status_code=503, detail="Model still loading…")
 
     prompts = req.prompt if isinstance(req.prompt, list) else [req.prompt]
+    
+    if req.stream:
+        async def generate_stream():
+            for idx, single_prompt in enumerate(prompts):
+                inputs = tokenizer(single_prompt, return_tensors="pt")
+                prompt_len = inputs["input_ids"].shape[-1]
+                
+                for choice_idx in range(req.n):
+                    with torch.inference_mode():
+                        outputs = await run_in_threadpool(
+                            lambda: model.generate(
+                                **inputs,
+                                max_new_tokens=req.max_tokens,
+                                pad_token_id=tokenizer.eos_token_id,
+                                temperature=req.temperature,
+                                top_p=req.top_p,
+                                do_sample=(req.temperature != 0.0 or req.top_p < 1.0),
+                                return_dict_in_generate=True,
+                                output_scores=True,
+                            )
+                        )
+                    
+                    generated_ids = outputs.sequences[0][prompt_len:]
+                    completion_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
+                    
+                    response = {
+                        "id": str(uuid.uuid4()),
+                        "object": "text_completion",
+                        "created": int(time.time()),
+                        "choices": [{
+                            "text": completion_text,
+                            "index": float(idx * req.n + choice_idx),
+                            "logprobs": None,
+                            "finish_reason": "length"
+                        }],
+                        "model": req.model
+                    }
+                    yield f"data: {json.dumps(response)}\n\n"
+                yield "data: [DONE]\n\n"
+        
+        return StreamingResponse(generate_stream(), media_type="text/event-stream")
+    
     all_choices = []
     usage_prompt_tokens = 0
     usage_completion_tokens = 0
@@ -259,8 +302,7 @@ async def complete(
                     )
                 )
 
-            generated_ids = outputs[0][prompt_len:]  # Tensor of shape (num_generated_tokens,)
-
+            generated_ids = outputs[0][prompt_len:]
             num_generated = generated_ids.shape[0]
             usage_completion_tokens += num_generated
 
