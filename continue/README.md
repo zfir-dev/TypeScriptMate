@@ -15,14 +15,7 @@ This guide will help you set up the Continue extension with TypeScriptMate.
 2. Copy the configuration to the Continue extension directory:
 
 ```bash
-# For macOS
-cp continue.json ~/Library/Application\ Support/Continue/config.json
-
-# For Linux
-cp continue.json ~/.config/Continue/config.json
-
-# For Windows (PowerShell)
-Copy-Item continue.json "$env:APPDATA\Continue\config.json"
+cp -f config.yaml ~/.continue/config.yaml
 ```
 
 3. Save the file
