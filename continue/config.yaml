@@ -1,0 +1,24 @@
+name: TypeScriptMate Continue Config
+version: 0.0.1
+models:
+  - name: TypeScriptMate
+    provider: openai
+    model: zfir/TypeScriptMate
+    apiKey: ""
+    apiBase: http://localhost:8000/v1
+    roles:
+      - autocomplete
+    promptTemplates:
+      autocomplete: |
+            {{{prefix}}}
+    defaultCompletionOptions:
+      temperature: 0.7
+      maxTokens: 40
+data:
+  - name: Feedback
+    destination: http://localhost:8000/feedbacks
+    schema: 0.2.0
+    level: noCode
+    events:
+      - autocomplete
+context: []
