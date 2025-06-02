@@ -4,11 +4,11 @@ import threading
 import csv
 import uuid
 import json
-from typing import Union, List, Optional
+from typing import Union, List, Optional, Dict, Any
 
 import torch
-from fastapi import FastAPI, BackgroundTasks, HTTPException
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Request
+from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
 from pydantic import BaseModel, Field
 from transformers import GPT2TokenizerFast, AutoModelForCausalLM
 from huggingface_hub import snapshot_download
@@ -57,7 +57,21 @@ def write_feedback_log(event: dict):
     with open(FEEDBACK_LOG, "a", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(
             f,
-            fieldnames=["prompt", "model", "completion", "action", "timestamp"]
+            fieldnames=[
+                # Base fields
+                "timestamp", "userId", "userAgent", "selectedProfileId", 
+                "eventName", "schema",
+                # Autocomplete fields
+                "disable", "maxPromptTokens", "debounceDelay", 
+                "maxSuffixPercentage", "prefixPercentage", "transform",
+                "template", "multilineCompletions", "slidingWindowPrefixPercentage",
+                "slidingWindowSize", "useCache", "onlyMyCode", "useRecentlyEdited",
+                "useImports", "accepted", "time", "prefix", "suffix",
+                "prompt", "completion", "modelProvider", "modelName",
+                "cacheHit", "filepath", "gitRepo", "completionId", "uniqueId",
+                # Metadata fields
+                "event_name", "schema_version", "level", "profile_id"
+            ]
         )
         if is_new:
             writer.writeheader()
@@ -153,12 +167,6 @@ class CompletionRequest(BaseModel):
     prompt: str
     max_tokens: int = 40
 
-class Feedback(BaseModel):
-    prompt: str
-    completion: str
-    action: str
-    timestamp: float
-
 class OpenAICompletionRequest(BaseModel):
     model: str
     prompt: Union[str, List[str]] = Field(..., description="Either a string or a list of strings")
@@ -168,7 +176,48 @@ class OpenAICompletionRequest(BaseModel):
     n: int = 1
     stream: bool = False
     logprobs: Optional[int] = None
-    stop: Optional[Union[str, List[str]]] = None
+
+class ContinueAutocompleteData(BaseModel):
+    timestamp: float
+    userId: Optional[str] = None
+    userAgent: Optional[str] = None
+    selectedProfileId: Optional[str] = None
+    eventName: Optional[str] = None
+    schema: Optional[str] = None
+    disable: Optional[bool] = None
+    maxPromptTokens: Optional[int] = None
+    debounceDelay: Optional[int] = None
+    maxSuffixPercentage: Optional[float] = None
+    prefixPercentage: Optional[float] = None
+    transform: Optional[Union[bool, str]] = None
+    template: Optional[str] = None
+    multilineCompletions: Optional[Union[bool, str]] = None
+    slidingWindowPrefixPercentage: Optional[float] = None
+    slidingWindowSize: Optional[int] = None
+    useCache: Optional[bool] = None
+    onlyMyCode: Optional[bool] = None
+    useRecentlyEdited: Optional[bool] = None
+    useImports: Optional[bool] = None
+    accepted: Optional[bool] = None
+    time: Optional[float] = None
+    prefix: Optional[str] = None
+    suffix: Optional[str] = None
+    prompt: Optional[str] = None
+    completion: Optional[str] = None
+    modelProvider: Optional[str] = None
+    modelName: Optional[str] = None
+    cacheHit: Optional[bool] = None
+    filepath: Optional[str] = None
+    gitRepo: Optional[str] = None
+    completionId: Optional[str] = None
+    uniqueId: Optional[str] = None
+
+class ContinueFeedback(BaseModel):
+    name: str
+    data: ContinueAutocompleteData
+    schema: str
+    level: Optional[str] = None
+    profileId: Optional[str] = None
 
 @app.get("/")
 @app.get("/health")
@@ -377,13 +426,51 @@ async def legacy_complete(
 
 
 @app.post("/feedbacks")
-def feedback_endpoint(ev: Feedback, background_tasks: BackgroundTasks):
-    event = {
-        "prompt": ev.prompt,
-        "model": MODEL_REPO_ID if MODEL_REPO_ID else "local",
-        "completion": ev.completion,
-        "action": ev.action,
-        "timestamp": ev.timestamp,
-    }
-    background_tasks.add_task(write_feedback_log, event)
-    return {"status": "ok"}
+async def feedbacks(request: Request, background_tasks: BackgroundTasks):
+    try:
+        body = await request.json()
+        print("Received feedback request:", json.dumps(body, indent=2))
+        
+        try:
+            ev = ContinueFeedback(**body)
+        except Exception as e:
+            print("Validation error:", str(e))
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "error": "Validation error",
+                    "message": str(e),
+                    "received_data": body
+                }
+            )
+        
+        event = ev.data.dict(exclude_none=True)
+        
+        event.update({
+            "event_name": ev.name,
+            "schema_version": ev.schema,
+            "level": ev.level,
+            "profile_id": ev.profileId
+        })
+        
+        background_tasks.add_task(write_feedback_log, event)
+        return {"status": "ok"}
+        
+    except json.JSONDecodeError as e:
+        print("JSON decode error:", str(e))
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "Invalid JSON",
+                "message": str(e)
+            }
+        )
+    except Exception as e:
+        print("Unexpected error:", str(e))
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Internal server error",
+                "message": str(e)
+            }
+        )
