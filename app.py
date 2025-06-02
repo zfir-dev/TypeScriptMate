@@ -437,8 +437,8 @@ async def legacy_complete(
     return {"completion": completion}
 
 
-@app.post("/feedbacks")
-async def feedbacks(request: Request, background_tasks: BackgroundTasks):
+@app.post("/feedback")
+async def feedback(request: Request, background_tasks: BackgroundTasks):
     try:
         body = await request.json()
         

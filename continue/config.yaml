@@ -5,7 +5,7 @@ models:
     provider: openai
     model: zfir/TypeScriptMate
     apiKey: ""
-    apiBase: http://localhost:8000/v1
+    apiBase: https://zfir-typescriptmate.hf.space/v1
     roles:
       - autocomplete
     promptTemplates:
@@ -16,7 +16,7 @@ models:
       maxTokens: 40
 data:
   - name: Feedback
-    destination: http://localhost:8000/feedbacks
+    destination: https://zfir-typescriptmate.hf.space/feedback
     schema: 0.2.0
     level: noCode
     events:
