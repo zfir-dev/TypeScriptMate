@@ -16,7 +16,7 @@ from starlette.concurrency import run_in_threadpool
 from supabase import create_client, Client
 from peft import PeftModel, PeftConfig
 
-MODEL_REPO_ID = os.getenv("MODEL_REPO_ID", "zfir/TypeScriptMate")
+MODEL_REPO_ID = os.getenv("MODEL_REPO_ID")
 HF_TOKEN = os.getenv("HF_TOKEN")
 USE_LORA = bool(int(os.getenv("USE_LORA", "0")))
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -285,6 +285,8 @@ async def complete(
         raise HTTPException(status_code=503, detail="Model still loading…")
 
     prompts = req.prompt if isinstance(req.prompt, list) else [req.prompt]
+
+    start_all = time.time()
     
     if req.stream:
         async def generate_stream():
@@ -309,6 +311,17 @@ async def complete(
                     
                     generated_ids = outputs.sequences[0][prompt_len:]
                     completion_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
+
+                    elapsed = time.time() - start_all
+
+                    event = {
+                        "prompt": single_prompt,
+                        "model": MODEL_REPO_ID if MODEL_REPO_ID else "local",
+                        "completion": completion_text,
+                        "latency_s": elapsed,
+                        "timestamp": time.time(),
+                    }
+                    background_tasks.add_task(write_completion_log, event)
                     
                     response = {
                         "id": str(uuid.uuid4()),
@@ -330,9 +343,6 @@ async def complete(
     all_choices = []
     usage_prompt_tokens = 0
     usage_completion_tokens = 0
-
-    start_all = time.time()
-
     for idx, single_prompt in enumerate(prompts):
         inputs = tokenizer(single_prompt, return_tensors="pt")
         prompt_len = inputs["input_ids"].shape[-1]
@@ -366,16 +376,16 @@ async def complete(
     total_tokens = usage_prompt_tokens + usage_completion_tokens
     elapsed = time.time() - start_all
 
-    if prompts:
-        event = {
-            "prompt": prompts[0],
-            "model": req.model,
-            "latency_s": elapsed,
-            "timestamp": time.time(),
-        }
-        background_tasks.add_task(write_completion_log, event)
+    event = {
+        "prompt": prompts[0],
+        "model": MODEL_REPO_ID if MODEL_REPO_ID else "local",
+        "completion": all_choices[0]["text"],
+        "latency_s": elapsed,
+        "timestamp": time.time(),
+    }
+    background_tasks.add_task(write_completion_log, event)
 
-    return {
+    response = {
         "id": str(uuid.uuid4()),
         "object": "text_completion",
         "created": int(time.time()),
@@ -387,6 +397,8 @@ async def complete(
             "total_tokens": total_tokens
         }
     }
+
+    return response
 
 @app.post("/complete")
 async def legacy_complete(
@@ -429,7 +441,6 @@ async def legacy_complete(
 async def feedbacks(request: Request, background_tasks: BackgroundTasks):
     try:
         body = await request.json()
-        print("Received feedback request:", json.dumps(body, indent=2))
         
         try:
             ev = ContinueFeedback(**body)
@@ -450,7 +461,8 @@ async def feedbacks(request: Request, background_tasks: BackgroundTasks):
             "event_name": ev.name,
             "schema_version": ev.schema,
             "level": ev.level,
-            "profile_id": ev.profileId
+            "profile_id": ev.profileId,
+            "modelName": MODEL_REPO_ID if MODEL_REPO_ID else "local",
         })
         
         background_tasks.add_task(write_feedback_log, event)
