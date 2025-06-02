@@ -8,6 +8,7 @@ This guide will help you set up the Continue extension with TypeScriptMate.
 2. Go to the Extensions view (Ctrl+Shift+X / Cmd+Shift+X)
 3. Search for "Continue"
 4. Click "Install" on the Continue extension by Continue AI
+   - Direct link: [Continue - VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=Continue.continue)
 
 ## Configuration
 
