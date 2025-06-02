@@ -169,6 +169,63 @@ class OpenAICompletionRequest(BaseModel):
     logprobs: Optional[int] = None
     stop: Optional[Union[str, List[str]]] = None
 
+@app.get("/")
+@app.get("/health")
+def index_and_health():
+    return {
+        "status": "healthy",
+        "model_loaded": model is not None,
+        "model_path": MODEL_PATH,
+        "time": time.time()
+    }
+
+
+@app.get("/logs", response_class=HTMLResponse)
+def logs():
+    def read_last_rows(path: str, max_rows: int = 20):
+        try:
+            with open(path, newline="", encoding="utf-8") as f:
+                rows = list(csv.reader(f))
+        except FileNotFoundError:
+            return [], []
+
+        if not rows:
+            return [], []
+
+        header, *entries = rows
+        last = entries[-max_rows:] if len(entries) > max_rows else entries
+        return header, last
+
+    comp_header, comp_rows = read_last_rows(COMPLETION_LOG)
+    fb_header, fb_rows     = read_last_rows(FEEDBACK_LOG)
+
+    html = ["<html><body style='font-family: sans-serif'>"]
+
+    if comp_header:
+        html.append("<h2>Last 20 Completions</h2>")
+        html.append("<table border='1' style='border-collapse:collapse;margin-bottom:2em'>")
+        html.append("<thead><tr>" + "".join(f"<th style='padding:4px'>{col}</th>" for col in comp_header) + "</tr></thead>")
+        html.append("<tbody>")
+        for row in comp_rows:
+            html.append("<tr>" + "".join(f"<td style='padding:4px'>{cell}</td>" for cell in row) + "</tr>")
+        html.append("</tbody></table>")
+    else:
+        html.append("<p><em>No completion logs found</em></p>")
+
+    if fb_header:
+        html.append("<h2>Last 20 Feedbacks</h2>")
+        html.append("<table border='1' style='border-collapse:collapse'>")
+        html.append("<thead><tr>" + "".join(f"<th style='padding:4px'>{col}</th>" for col in fb_header) + "</tr></thead>")
+        html.append("<tbody>")
+        for row in fb_rows:
+            html.append("<tr>" + "".join(f"<td style='padding:4px'>{cell}</td>" for cell in row) + "</tr>")
+        html.append("</tbody></table>")
+    else:
+        html.append("<p><em>No feedback logs found</em></p>")
+
+    html.append("</body></html>")
+    return HTMLResponse("".join(html))
+
 @app.post("/v1/completions")
 async def complete(
     req: OpenAICompletionRequest,
@@ -183,14 +240,6 @@ async def complete(
     usage_completion_tokens = 0
 
     start_all = time.time()
-
-    # Normalize stop sequences if present
-    if req.stop is None:
-        stop_seqs: list[str] = []
-    elif isinstance(req.stop, str):
-        stop_seqs = [req.stop]
-    else:
-        stop_seqs = req.stop
 
     for idx, single_prompt in enumerate(prompts):
         inputs = tokenizer(single_prompt, return_tensors="pt")
@@ -210,32 +259,17 @@ async def complete(
                     )
                 )
 
-            # Slice out only the newly generated tokens
             generated_ids = outputs[0][prompt_len:]  # Tensor of shape (num_generated_tokens,)
 
-            # Count how many tokens were generated
             num_generated = generated_ids.shape[0]
             usage_completion_tokens += num_generated
 
-            # Decode to text
-            generated_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
-
-            # Apply stop sequences if needed
-            if stop_seqs:
-                earliest_cut = None
-                for stop_tok in stop_seqs:
-                    idx_found = generated_text.find(stop_tok)
-                    if idx_found != -1:
-                        if earliest_cut is None or idx_found < earliest_cut:
-                            earliest_cut = idx_found
-                if earliest_cut is not None:
-                    generated_text = generated_text[:earliest_cut]
-
+            completion_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
             all_choices.append({
-                "text": generated_text,
+                "text": completion_text,
                 "index": float(idx * req.n + choice_idx),
                 "logprobs": None,
-                "finish_reason": "stop" if stop_seqs else "length"
+                "finish_reason": "length"
             })
 
     total_tokens = usage_prompt_tokens + usage_completion_tokens
