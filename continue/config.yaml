@@ -9,8 +9,7 @@ models:
     roles:
       - autocomplete
     promptTemplates:
-      autocomplete: |
-            {{{prefix}}}
+      autocomplete: "{{{prefix}}}"
     defaultCompletionOptions:
       temperature: 0.7
       maxTokens: 40
