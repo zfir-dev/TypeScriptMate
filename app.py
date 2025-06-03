@@ -276,6 +276,26 @@ def logs():
     html.append("</body></html>")
     return HTMLResponse("".join(html))
 
+def get_max_sequence_length():
+    if hasattr(model, 'config') and hasattr(model.config, 'max_position_embeddings'):
+        return model.config.max_position_embeddings
+    elif hasattr(model, 'config') and hasattr(model.config, 'n_positions'):
+        return model.config.n_positions
+    else:
+        return 1024
+
+def truncate_prompt_if_needed(prompt: str, max_tokens: int = 40) -> str:
+    max_seq_len = get_max_sequence_length()
+    max_prompt_len = max_seq_len - max_tokens - 10
+    
+    inputs = tokenizer(prompt, return_tensors="pt")
+    if inputs["input_ids"].shape[-1] > max_prompt_len:
+        input_ids = inputs["input_ids"][0][-max_prompt_len:]
+        truncated_prompt = tokenizer.decode(input_ids, skip_special_tokens=True)
+        print(f"Warning: Prompt truncated from {inputs['input_ids'].shape[-1]} to {len(input_ids)} tokens")
+        return truncated_prompt
+    return prompt
+
 @app.post("/v1/completions")
 async def complete(
     req: OpenAICompletionRequest,
@@ -285,6 +305,8 @@ async def complete(
         raise HTTPException(status_code=503, detail="Model still loading…")
 
     prompts = req.prompt if isinstance(req.prompt, list) else [req.prompt]
+    
+    prompts = [truncate_prompt_if_needed(prompt, req.max_tokens) for prompt in prompts]
 
     start_all = time.time()
     
@@ -407,8 +429,11 @@ async def legacy_complete(
     if model is None:
         return {"error": "Model still loading…"}
 
+    # Truncate prompt if needed
+    truncated_prompt = truncate_prompt_if_needed(req.prompt, req.max_tokens)
+
     start = time.time()
-    inputs = tokenizer(req.prompt, return_tensors="pt")
+    inputs = tokenizer(truncated_prompt, return_tensors="pt")
     with torch.inference_mode():
         outputs = await run_in_threadpool(
             lambda: model.generate(
