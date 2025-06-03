@@ -27,6 +27,7 @@ if SUPABASE_URL and SUPABASE_KEY:
     print("Supabase client connected")
 else:
     supabase = None
+    print("Supabase client not connected")
 
 BUCKET = "typescriptmate"
 FEEDBACK_LOG = "feedbacks.csv"
