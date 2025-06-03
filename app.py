@@ -247,7 +247,7 @@ def logs():
         return header, last
 
     comp_header, comp_rows = read_last_rows(COMPLETION_LOG)
-    fb_header, fb_rows     = read_last_rows(FEEDBACK_LOG)
+    fb_header, fb_rows = read_last_rows(FEEDBACK_LOG)
 
     html = ["<html><body style='font-family: sans-serif'>"]
 
@@ -397,7 +397,6 @@ async def complete(
             "total_tokens": total_tokens
         }
     }
-
     return response
 
 @app.post("/complete")
