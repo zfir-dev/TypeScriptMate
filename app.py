@@ -24,6 +24,7 @@ SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 if SUPABASE_URL and SUPABASE_KEY:
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    print("Supabase client connected")
 else:
     supabase = None
 
@@ -53,7 +54,7 @@ tokenizer: GPT2TokenizerFast = None
 model: torch.nn.Module = None
 
 def write_feedback_log(event: dict):
-    is_new = not os.path.isfile(FEEDBACK_LOG)
+    file_exists = os.path.isfile(FEEDBACK_LOG)
     with open(FEEDBACK_LOG, "a", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(
             f,
@@ -73,7 +74,7 @@ def write_feedback_log(event: dict):
                 "event_name", "schema_version", "level", "profile_id"
             ]
         )
-        if is_new:
+        if not file_exists:
             writer.writeheader()
         writer.writerow(event)
     
