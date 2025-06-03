@@ -306,13 +306,13 @@ async def complete(
 
     prompts = req.prompt if isinstance(req.prompt, list) else [req.prompt]
     
-    prompts = [truncate_prompt_if_needed(prompt, req.max_tokens) for prompt in prompts]
+    truncated_prompts = [truncate_prompt_if_needed(prompt, req.max_tokens) for prompt in prompts]
 
     start_all = time.time()
     
     if req.stream:
         async def generate_stream():
-            for idx, single_prompt in enumerate(prompts):
+            for idx, single_prompt in enumerate(truncated_prompts):
                 inputs = tokenizer(single_prompt, return_tensors="pt")
                 prompt_len = inputs["input_ids"].shape[-1]
                 
@@ -365,7 +365,7 @@ async def complete(
     all_choices = []
     usage_prompt_tokens = 0
     usage_completion_tokens = 0
-    for idx, single_prompt in enumerate(prompts):
+    for idx, single_prompt in enumerate(truncated_prompts):
         inputs = tokenizer(single_prompt, return_tensors="pt")
         prompt_len = inputs["input_ids"].shape[-1]
         usage_prompt_tokens += prompt_len
@@ -399,7 +399,7 @@ async def complete(
     elapsed = time.time() - start_all
 
     event = {
-        "prompt": prompts[0],
+        "prompt": truncated_prompts[0],
         "model": MODEL_REPO_ID if MODEL_REPO_ID else "local",
         "completion": all_choices[0]["text"],
         "latency_s": elapsed,
@@ -427,9 +427,8 @@ async def legacy_complete(
     background_tasks: BackgroundTasks
 ):
     if model is None:
-        return {"error": "Model still loading…"}
+        raise HTTPException(status_code=503, detail="Model still loading…")
 
-    # Truncate prompt if needed
     truncated_prompt = truncate_prompt_if_needed(req.prompt, req.max_tokens)
 
     start = time.time()
