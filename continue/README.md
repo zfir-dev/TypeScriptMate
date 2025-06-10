@@ -21,5 +21,15 @@ cp -f config.yaml ~/.continue/config.yaml
 
 ## Usage
 
-- Press `Cmd+P` (Mac) or `Ctrl+P` (Windows/Linux) to toggle Continue: Toggle Autocomplete Enabled
+- Press `Cmd+Shift+P` (Mac) or `Ctrl+Shift+P` (Windows/Linux) to open the Command Palette
+- Type "Continue: Toggle Autocomplete Enabled" and press Enter
 - The model will respond with code completions and suggestions
+
+## Settings
+- Press `Cmd+Shift+P` (Mac) or `Ctrl+Shift+P` (Windows/Linux) to open the Command Palette
+- Type "Continue: Open Settings" and press Enter
+- Find these settings:
+- - Autocomplete Timeout (ms): Set it to `400`
+- - Autocomplete Debounce (ms): Set it to `500`
+- - Disable autocomplete in files: Set it to `**/*, !**/*.ts, !**/*.tsx`
+
