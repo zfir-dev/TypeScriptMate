@@ -171,6 +171,7 @@ def load_model():
         print("Loading base model…")
         model = AutoModelForCausalLM.from_pretrained(MODEL_PATH)
 
+    model = torch.compile(model)
     model.eval()
 
     print("Warming up (1 token)…")
@@ -375,7 +376,6 @@ async def complete(
                         "timestamp": time.time(),
                     }
                     background_tasks.add_task(write_completion_log, event)
-                    print("ZAFIR", completion_text)
                     
                     response = {
                         "id": str(uuid.uuid4()),
