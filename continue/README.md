@@ -31,4 +31,4 @@ cp -f config.yaml ~/.continue/config.yaml
 - Find these settings:
 - - Autocomplete Timeout (ms): Set it to `400`
 - - Autocomplete Debounce (ms): Set it to `500`
-- - Disable autocomplete in files: Set it to `**/*.js,**/*.jsx,**/*.json,**/*.md,**/*.yaml,**/*.yml,**/*.html,**/*.pug,**/*.erb,**/*.haml,**/*.slim,**/*.css,**/*.scss,**/*.sass,**/*.less,**/*.env,**/*.lock,**/*.toml,**/*.ini,**/*.xml,**/*.txt,**/*.log,**/*.test.ts,**/*.spec.ts,**/*.test.js,**/*.spec.js,**/*.snap,**/*.rb,**/*.spec.rb,**/*.test.rb,**/.gitignore,**/.gitattributes`
+- - Disable autocomplete in files: Set it to `**/*.js,**/*.jsx,**/*.json,**/*.md,**/*.yaml,**/*.yml,**/*.html,**/*.pug,**/*.erb,**/*.haml,**/*.slim,**/*.hbs,**/*.css,**/*.scss,**/*.sass,**/*.less,**/*.ico,**/*.env,**/*.lock,**/*.toml,**/*.ini,**/*.xml,**/*.txt,**/*.log,**/*.test.ts,**/*.spec.ts,**/*.test.js,**/*.spec.js,**/*.snap,**/*.rb,**/*.spec.rb,**/*.test.rb,**/.gitignore,**/.gitattributes`
