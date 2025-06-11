@@ -18,7 +18,7 @@ from peft import PeftModel, PeftConfig
 
 MODEL_REPO_ID = os.getenv("MODEL_REPO_ID")
 HF_TOKEN = os.getenv("HF_TOKEN")
-USE_LORA = bool(int(os.getenv("USE_LORA", "1")))
+USE_LORA = bool(int(os.getenv("USE_LORA", "0")))
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
