@@ -4,21 +4,23 @@ import threading
 import csv
 import uuid
 import json
-from typing import Union, List, Optional, Dict, Any
+import asyncio
+from typing import Union, List, Optional
 
 import torch
+from torch.ao import quantization
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Request
-from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
-from transformers import GPT2TokenizerFast, AutoModelForCausalLM
+from transformers import GPT2TokenizerFast, AutoModelForCausalLM, TextIteratorStreamer
 from huggingface_hub import snapshot_download
 from starlette.concurrency import run_in_threadpool
 from supabase import create_client, Client
-from peft import PeftModel, PeftConfig
+from peft import PeftConfig, LoraConfig, get_peft_model, PeftModel
 
 MODEL_REPO_ID = os.getenv("MODEL_REPO_ID")
 HF_TOKEN = os.getenv("HF_TOKEN")
-USE_LORA = bool(int(os.getenv("USE_LORA", "0")))
+USE_LORA = bool(int(os.getenv("USE_LORA", "1")))
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
@@ -127,9 +129,9 @@ def load_model():
         print("Loading LoRA model…")
 
         print("Loading adapter config…")
-        adapter_config = PeftConfig.from_pretrained(MODEL_PATH)
 
-        base_model_name_or_path = adapter_config.base_model_name_or_path
+        adapter_cfg = PeftConfig.from_pretrained(MODEL_PATH)
+        base_model_name_or_path  = adapter_cfg.base_model_name_or_path
 
         print("Loading tokenizer…")
         tokenizer = GPT2TokenizerFast.from_pretrained(base_model_name_or_path)
@@ -140,15 +142,34 @@ def load_model():
             base_model_name_or_path,
             torch_dtype=torch.float16
         )
-        model = PeftModel.from_pretrained(base_model, MODEL_PATH, local_files_only=True)
+
+        lora_cfg = LoraConfig(
+            task_type="CAUSAL_LM",
+            inference_mode=True,
+            r=adapter_cfg.r,
+            lora_alpha=adapter_cfg.lora_alpha,
+            lora_dropout=adapter_cfg.lora_dropout,
+            bias=adapter_cfg.bias,
+            target_modules=adapter_cfg.target_modules,
+        )
+
+        print("Attaching LoRA adapter & merging weights…")
+        peft_wrapped = get_peft_model(base_model, lora_cfg)
+        peft_wrapped = PeftModel.from_pretrained(
+            peft_wrapped,
+            MODEL_PATH,
+            local_files_only=True,
+        )
+        model = peft_wrapped.merge_and_unload()
+
     else:
+        print("Loading vanilla model…")
         print("Loading tokenizer…")
         tokenizer = GPT2TokenizerFast.from_pretrained(MODEL_PATH)
         tokenizer.pad_token = tokenizer.eos_token
 
         print("Loading base model…")
-        base_model = AutoModelForCausalLM.from_pretrained(MODEL_PATH).eval()
-        model = base_model
+        model = AutoModelForCausalLM.from_pretrained(MODEL_PATH)
 
     model.eval()
 
@@ -354,6 +375,7 @@ async def complete(
                         "timestamp": time.time(),
                     }
                     background_tasks.add_task(write_completion_log, event)
+                    print("ZAFIR", completion_text)
                     
                     response = {
                         "id": str(uuid.uuid4()),
