@@ -16,7 +16,7 @@ from transformers import GPT2TokenizerFast, AutoModelForCausalLM, TextIteratorSt
 from huggingface_hub import snapshot_download
 from starlette.concurrency import run_in_threadpool
 from supabase import create_client, Client
-from peft import PeftConfig, LoraConfig, get_peft_model, PeftModel
+from peft import PeftConfig, LoraConfig, get_peft_model, PeftModel, TaskType
 
 MODEL_REPO_ID = os.getenv("MODEL_REPO_ID")
 HF_TOKEN = os.getenv("HF_TOKEN")
@@ -144,7 +144,7 @@ def load_model():
         )
 
         lora_cfg = LoraConfig(
-            task_type="CAUSAL_LM",
+            task_type=TaskType.CAUSAL_LM,
             inference_mode=True,
             r=adapter_cfg.r,
             lora_alpha=adapter_cfg.lora_alpha,
@@ -171,7 +171,6 @@ def load_model():
         print("Loading base model…")
         model = AutoModelForCausalLM.from_pretrained(MODEL_PATH)
 
-    model = torch.compile(model)
     model.eval()
 
     print("Warming up (1 token)…")
@@ -356,7 +355,7 @@ async def complete(
                                 pad_token_id=tokenizer.eos_token_id,
                                 temperature=req.temperature,
                                 top_p=req.top_p,
-                                do_sample=(req.temperature != 0.0 or req.top_p < 1.0),
+                                do_sample=True,
                                 return_dict_in_generate=True,
                                 output_scores=True,
                             )
@@ -409,7 +408,9 @@ async def complete(
                         pad_token_id=tokenizer.eos_token_id,
                         temperature=req.temperature,
                         top_p=req.top_p,
-                        do_sample=(req.temperature != 0.0 or req.top_p < 1.0),
+                        do_sample=True,
+                        return_dict_in_generate=True,
+                        output_scores=True,
                     )
                 )
 
