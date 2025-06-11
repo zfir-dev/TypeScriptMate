@@ -18,7 +18,7 @@ from peft import PeftModel, PeftConfig
 
 MODEL_REPO_ID = os.getenv("MODEL_REPO_ID")
 HF_TOKEN = os.getenv("HF_TOKEN")
-USE_LORA = bool(int(os.getenv("USE_LORA", "0")))
+USE_LORA = bool(int(os.getenv("USE_LORA", "1")))
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
@@ -279,10 +279,17 @@ def logs():
     return HTMLResponse("".join(html))
 
 def get_max_sequence_length():
-    if hasattr(model, 'config') and hasattr(model.config, 'max_position_embeddings'):
-        return model.config.max_position_embeddings
-    elif hasattr(model, 'config') and hasattr(model.config, 'n_positions'):
-        return model.config.n_positions
+    if USE_LORA:
+        cfg = model.base_model.config
+    else:
+        cfg = model.config
+
+    if hasattr(cfg, "max_position_embeddings"):
+        return cfg.max_position_embeddings - 10
+    elif hasattr(cfg, "n_positions"):
+        return cfg.n_positions
+    elif hasattr(cfg, "n_ctx"):
+        return cfg.n_ctx
     else:
         return 1024
 
@@ -333,7 +340,8 @@ async def complete(
                             )
                         )
                     
-                    generated_ids = outputs.sequences[0][prompt_len:]
+                    prompt_len = inputs["input_ids"].shape[-1]
+                    generated_ids = outputs[0][prompt_len:]
                     completion_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
 
                     elapsed = time.time() - start_all
@@ -369,8 +377,6 @@ async def complete(
     usage_completion_tokens = 0
     for idx, single_prompt in enumerate(truncated_prompts):
         inputs = tokenizer(single_prompt, return_tensors="pt")
-        prompt_len = inputs["input_ids"].shape[-1]
-        usage_prompt_tokens += prompt_len
 
         for choice_idx in range(req.n):
             with torch.inference_mode():
@@ -385,6 +391,8 @@ async def complete(
                     )
                 )
 
+            prompt_len = inputs["input_ids"].shape[-1]
+            usage_prompt_tokens += prompt_len
             generated_ids = outputs[0][prompt_len:]
             num_generated = generated_ids.shape[0]
             usage_completion_tokens += num_generated
