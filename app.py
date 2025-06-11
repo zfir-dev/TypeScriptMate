@@ -129,7 +129,6 @@ def load_model():
         print("Loading LoRA model…")
 
         print("Loading adapter config…")
-
         adapter_cfg = PeftConfig.from_pretrained(MODEL_PATH)
         base_model_name_or_path  = adapter_cfg.base_model_name_or_path
 
@@ -164,6 +163,7 @@ def load_model():
 
     else:
         print("Loading vanilla model…")
+        
         print("Loading tokenizer…")
         tokenizer = GPT2TokenizerFast.from_pretrained(MODEL_PATH)
         tokenizer.pad_token = tokenizer.eos_token
