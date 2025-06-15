@@ -176,6 +176,18 @@ def load_model():
     print("Warming up (40 tokens)…")
     with torch.inference_mode():
         _ = model.generate(**dummy, max_new_tokens=40)
+    print("Warming up (100 tokens)…")
+    with torch.inference_mode():
+        _ = model.generate(**dummy, max_new_tokens=100)
+    print("Warming up (200 tokens)…")
+    with torch.inference_mode():
+        _ = model.generate(**dummy, max_new_tokens=200)
+    print("Warming up (400 tokens)…")
+    with torch.inference_mode():
+        _ = model.generate(**dummy, max_new_tokens=400)
+    print("Warming up (800 tokens)…")
+    with torch.inference_mode():
+        _ = model.generate(**dummy, max_new_tokens=800)
     print("Warm-up complete.")
 
 
