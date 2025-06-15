@@ -14,7 +14,7 @@ from transformers import GPT2TokenizerFast, AutoModelForCausalLM
 from huggingface_hub import snapshot_download
 from starlette.concurrency import run_in_threadpool
 from supabase import create_client, Client
-from peft import PeftConfig, LoraConfig, get_peft_model, PeftModel, TaskType
+from peft import PeftConfig, PeftModel
 
 MODEL_REPO_ID = os.getenv("MODEL_REPO_ID")
 HF_TOKEN = os.getenv("HF_TOKEN")
@@ -127,8 +127,8 @@ def load_model():
         print("Loading LoRA model…")
 
         print("Loading adapter config…")
-        adapter_cfg = PeftConfig.from_pretrained(MODEL_PATH)
-        base_model_name_or_path  = adapter_cfg.base_model_name_or_path
+        adapter_config = PeftConfig.from_pretrained(MODEL_PATH)
+        base_model_name_or_path = adapter_config.base_model_name_or_path
 
         print("Loading tokenizer…")
         tokenizer = GPT2TokenizerFast.from_pretrained(base_model_name_or_path)
@@ -137,27 +137,15 @@ def load_model():
         print("Loading base model…")
         base_model = AutoModelForCausalLM.from_pretrained(
             base_model_name_or_path,
-            torch_dtype=torch.float16
+            torch_dtype=torch.float32        
         )
-
-        lora_cfg = LoraConfig(
-            task_type=TaskType.CAUSAL_LM,
-            inference_mode=True,
-            r=adapter_cfg.r,
-            lora_alpha=adapter_cfg.lora_alpha,
-            lora_dropout=adapter_cfg.lora_dropout,
-            bias=adapter_cfg.bias,
-            target_modules=adapter_cfg.target_modules,
+        model = PeftModel.from_pretrained(
+            base_model, 
+            MODEL_PATH, 
+            torch_dtype=torch.float32, 
+            local_files_only=True
         )
-
-        print("Attaching LoRA adapter & merging weights…")
-        peft_wrapped = get_peft_model(base_model, lora_cfg)
-        peft_wrapped = PeftModel.from_pretrained(
-            peft_wrapped,
-            MODEL_PATH,
-            local_files_only=True,
-        )
-        model = peft_wrapped.merge_and_unload()
+        model = model.merge_and_unload()
 
     else:
         print("Loading vanilla model…")
@@ -168,6 +156,16 @@ def load_model():
 
         print("Loading base model…")
         model = AutoModelForCausalLM.from_pretrained(MODEL_PATH)
+
+    print("Supported quantization engines:", torch.backends.quantized.supported_engines)
+    torch.backends.quantized.engine = 'qnnpack'
+
+    print("Quantizing model…")
+    model = torch.quantization.quantize_dynamic(
+        model, 
+        {torch.nn.Linear}, 
+        dtype=torch.qint8
+    )
 
     model.eval()
 
