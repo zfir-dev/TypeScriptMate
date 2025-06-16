@@ -19,6 +19,7 @@ from peft import PeftConfig, PeftModel
 MODEL_REPO_ID = os.getenv("MODEL_REPO_ID")
 HF_TOKEN = os.getenv("HF_TOKEN")
 USE_LORA = bool(int(os.getenv("USE_LORA", "0")))
+USE_QUANTIZATION = bool(int(os.getenv("USE_QUANTIZATION", "1")))
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
@@ -160,12 +161,13 @@ def load_model():
     print("Supported quantization engines:", torch.backends.quantized.supported_engines)
     torch.backends.quantized.engine = 'qnnpack'
 
-    print("Quantizing model…")
-    model = torch.quantization.quantize_dynamic(
-        model, 
-        {torch.nn.Linear}, 
-        dtype=torch.qint8
-    )
+    if USE_QUANTIZATION:
+        print("Quantizing model…")
+        model = torch.quantization.quantize_dynamic(
+            model, 
+            {torch.nn.Linear}, 
+            dtype=torch.qint8
+        )
 
     model.eval()
 
