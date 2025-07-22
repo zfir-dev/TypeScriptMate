@@ -32,6 +32,7 @@ else:
 
 BUCKET = "typescriptmate"
 FEEDBACK_LOG = "feedbacks.csv"
+MODIFIED_FEEDBACK_LOG = "feedbacks.modified.csv"
 COMPLETION_LOG = "completions.csv"
 
 for log_name in (COMPLETION_LOG, FEEDBACK_LOG):
@@ -280,7 +281,7 @@ def logs():
         return header, last
 
     comp_header, comp_rows = read_last_rows(COMPLETION_LOG)
-    fb_header, fb_rows = read_last_rows(FEEDBACK_LOG)
+    fb_header, fb_rows = read_last_rows(MODIFIED_FEEDBACK_LOG)
 
     html = ["<html><body style='font-family: sans-serif'>"]
 
