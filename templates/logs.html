@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>📝 TypescriptMate Logs</title>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+        }
+
+        h2 {
+            margin-top: 2em;
+        }
+
+        div.dataTables_wrapper {
+            overflow-x: auto;
+        }
+
+        table.dataTable thead th {
+            background-color: #f2f2f2;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>📝 TypescriptMate Logs</h1>
+
+    {% if comp %}
+    <h2>Last 20 Completions</h2>
+    <div class="dataTables_wrapper">
+        <table id="completionTable" class="display nowrap" style="width:100%">
+            <thead>
+                <tr>{% for col in comp.header %}<th>{{ col }}</th>{% endfor %}</tr>
+            </thead>
+            <tbody>
+                {% for row in comp.rows %}
+                <tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p><em>No completion logs found.</em></p>
+    {% endif %}
+
+    {% if fb %}
+    <h2>Last 20 Feedbacks</h2>
+    <div class="dataTables_wrapper">
+        <table id="feedbackTable" class="display nowrap" style="width:100%">
+            <thead>
+                <tr>{% for col in fb.header %}<th>{{ col }}</th>{% endfor %}</tr>
+            </thead>
+            <tbody>
+                {% for row in fb.rows %}
+                <tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p><em>No feedback logs found.</em></p>
+    {% endif %}
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <script src="https://cdn.datatables.net/plug-ins/1.13.6/sorting/datetime-moment.js"></script>
+    <script>
+        $(document).ready(function () {
+            $.fn.dataTable.moment('YYYY-MM-DDTHH:mm:ss'); // for ISO datetime sorting
+
+            $('#completionTable').DataTable({
+                scrollX: true,
+                searching: false,
+                paging: false,
+                info: false
+            });
+
+            $('#feedbackTable').DataTable({
+                scrollX: true,
+                searching: false,
+                paging: false,
+                info: false
+            });
+        });
+    </script>
+
+</body>
+
+</html>

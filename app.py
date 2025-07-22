@@ -5,9 +5,11 @@ import csv
 import uuid
 import json
 from typing import Union, List, Optional
+from datetime import datetime
 
 import torch
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Request
+from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from transformers import GPT2TokenizerFast, AutoModelForCausalLM
@@ -51,6 +53,8 @@ torch.set_num_interop_threads(2)
 print("Starting app…")
 
 app = FastAPI()
+
+templates = Jinja2Templates(directory="templates")
 
 MODEL_PATH: str = None
 tokenizer: GPT2TokenizerFast = None
@@ -265,7 +269,7 @@ def index_and_health():
 
 
 @app.get("/logs", response_class=HTMLResponse)
-def logs():
+def logs(request: Request):
     def read_last_rows(path: str, max_rows: int = 20):
         try:
             with open(path, newline="", encoding="utf-8") as f:
@@ -280,35 +284,54 @@ def logs():
         last = entries[-max_rows:] if len(entries) > max_rows else entries
         return header, last
 
+    def preprocess_rows(header, rows):
+        processed = []
+        for row in rows:
+            row_dict = dict(zip(header, row))
+
+            for key in header:
+                val = row_dict.get(key, "")
+
+                if "timestamp" in key.lower():
+                    try:
+                        ts = float(val)
+                        if ts > 1e12:
+                            ts /= 1000
+                        dt = datetime.fromtimestamp(ts)
+                        row_dict[key] = dt.strftime('%Y-%m-%d %H:%M:%S')
+                    except:
+                        try:
+                            dt = datetime.fromisoformat(val.replace("Z", "+00:00"))
+                            row_dict[key] = dt.strftime('%Y-%m-%d %H:%M:%S')
+                        except:
+                            pass
+
+                elif key.lower() == "time":
+                    try:
+                        seconds = int(float(val))
+                        hours, remainder = divmod(seconds, 3600)
+                        minutes, secs = divmod(remainder, 60)
+                        row_dict[key] = f"{hours:02}:{minutes:02}:{secs:02}"
+                    except:
+                        pass
+
+                elif key.lower() in ["prompt", "completion"] and len(val) > 30:
+                    row_dict[key] = val[:30] + "..."
+
+            processed.append([row_dict.get(col, "") for col in header])
+        return processed
+    
     comp_header, comp_rows = read_last_rows(COMPLETION_LOG)
     fb_header, fb_rows = read_last_rows(MODIFIED_FEEDBACK_LOG)
 
-    html = ["<html><body style='font-family: sans-serif'>"]
+    comp_rows = preprocess_rows(comp_header, comp_rows) if comp_header else []
+    fb_rows = preprocess_rows(fb_header, fb_rows) if fb_header else []
 
-    if comp_header:
-        html.append("<h2>Last 20 Completions</h2>")
-        html.append("<table border='1' style='border-collapse:collapse;margin-bottom:2em'>")
-        html.append("<thead><tr>" + "".join(f"<th style='padding:4px'>{col}</th>" for col in comp_header) + "</tr></thead>")
-        html.append("<tbody>")
-        for row in comp_rows:
-            html.append("<tr>" + "".join(f"<td style='padding:4px'>{cell}</td>" for cell in row) + "</tr>")
-        html.append("</tbody></table>")
-    else:
-        html.append("<p><em>No completion logs found</em></p>")
-
-    if fb_header:
-        html.append("<h2>Last 20 Feedbacks</h2>")
-        html.append("<table border='1' style='border-collapse:collapse'>")
-        html.append("<thead><tr>" + "".join(f"<th style='padding:4px'>{col}</th>" for col in fb_header) + "</tr></thead>")
-        html.append("<tbody>")
-        for row in fb_rows:
-            html.append("<tr>" + "".join(f"<td style='padding:4px'>{cell}</td>" for cell in row) + "</tr>")
-        html.append("</tbody></table>")
-    else:
-        html.append("<p><em>No feedback logs found</em></p>")
-
-    html.append("</body></html>")
-    return HTMLResponse("".join(html))
+    return templates.TemplateResponse("logs.html", {
+        "request": request,
+        "comp": {"header": comp_header, "rows": comp_rows} if comp_header else None,
+        "fb": {"header": fb_header, "rows": fb_rows} if fb_header else None
+    })
 
 def get_max_sequence_length():
     if hasattr(model, 'config') and hasattr(model.config, 'max_position_embeddings'):
