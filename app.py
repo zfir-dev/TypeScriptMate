@@ -35,7 +35,7 @@ FEEDBACK_LOG = "feedbacks.csv"
 MODIFIED_FEEDBACK_LOG = "feedbacks.modified.csv"
 COMPLETION_LOG = "completions.csv"
 
-for log_name in (COMPLETION_LOG, FEEDBACK_LOG):
+for log_name in (COMPLETION_LOG, FEEDBACK_LOG, MODIFIED_FEEDBACK_LOG):
     try:
         res = supabase.storage.from_(BUCKET).download(log_name)
         data = res.content if hasattr(res, "content") else res
